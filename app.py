@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker, relationship, declarative_base
 import plotly.express as px
 
 # --- CONFIGURAÇÃO E CONSTANTES ---
-# Alterado para 'expanded' para o menu do Admin aparecer aberto
+# Mantido como 'expanded' para o menu do Admin aparecer aberto e não dar tela preta
 st.set_page_config(page_title="SST - Pesquisas", layout="wide", initial_sidebar_state="expanded")
 
 # --- OCULTAR ELEMENTOS DO STREAMLIT (FORÇA MÁXIMA) ---
@@ -35,11 +35,11 @@ hide_st_style = """
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
-# Endereço base para geração de links
+# Endereço base para geração de links do Laboratório
 BASE_URL = "https://formulario-psic2.streamlit.app" 
 
 # --- BANCO DE DADOS ---
-# O sistema agora ignora o arquivo local e usa a conexão segura com a HostGator
+# O sistema agora usa a conexão segura com a HostGator para testes
 DB_URL = st.secrets["db_url"]
 Base = declarative_base()
 
@@ -63,11 +63,17 @@ class Funcionario(Base):
     empresa = relationship("Empresa", back_populates="funcionarios")
     __table_args__ = (UniqueConstraint('empresa_id', 'cpf', name='_empresa_cpf_uc'),)
 
-engine = create_engine(DB_URL)
+# 1. Protegendo o Motor contra as quedas de conexão da HostGator (A Vacina)
+@st.cache_resource
+def get_engine():
+    # pool_pre_ping testa a conexão antes de usar. pool_recycle renova de tempos em tempos.
+    return create_engine(DB_URL, pool_pre_ping=True, pool_recycle=3600)
+
+engine = get_engine()
 Base.metadata.create_all(engine)
 SessionLocal = sessionmaker(bind=engine)
 
-@st.cache_resource
+# 2. Sessão nova a cada ação (Sem o @st.cache_resource para evitar PendingRollbackError)
 def get_db():
     return SessionLocal()
 
@@ -97,6 +103,7 @@ def login_colaborador(empresa):
     
     with st.form("login_worker"):
         cpf_input = st.text_input("CPF (apenas números)")
+        # Alterado para forçar a caixinha em branco (value=None)
         data_nasc_input = st.date_input("Data de Nascimento", value=None, min_value=datetime(1940, 1, 1), format="DD/MM/YYYY")
         
         if st.form_submit_button("ENTRAR"):
