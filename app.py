@@ -97,7 +97,7 @@ def login_colaborador(empresa):
     
     with st.form("login_worker"):
         cpf_input = st.text_input("CPF (apenas números)")
-        data_nasc_input = st.date_input("Data de Nascimento", min_value=datetime(1940, 1, 1), format="DD/MM/YYYY")
+        data_nasc_input = st.date_input("Data de Nascimento", value=None, min_value=datetime(1940, 1, 1), format="DD/MM/YYYY")
         
         if st.form_submit_button("ENTRAR"):
             db = get_db()
