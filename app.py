@@ -38,6 +38,31 @@ st.markdown(hide_st_style, unsafe_allow_html=True)
 # Endereço base para geração de links do Laboratório
 BASE_URL = "https://formulario-psic2.streamlit.app" 
 
+# --- ESTRUTURA DE DADOS COPSOQ II ---
+PERGUNTAS_COPSOQ = [
+    {
+        "id": 1,
+        "dimensao": "Demandas Quantitativas",
+        "enunciado": "1. Você tem que trabalhar muito rapidamente?",
+        "texto_ajuda": "Considere a velocidade exigida para realizar suas tarefas habituais.",
+        "inverter_pontuacao": False
+    },
+    {
+        "id": 2,
+        "dimensao": "Demandas Emocionais",
+        "enunciado": "2. Seu trabalho coloca você em situações emocionalmente perturbadoras?",
+        "texto_ajuda": "Refere-se a lidar com situações que causam estresse ou desconforto emocional.",
+        "inverter_pontuacao": False
+    },
+    {
+        "id": 3,
+        "dimensao": "Influência e Desenvolvimento",
+        "enunciado": "3. Você tem influência sobre as decisões relativas ao seu trabalho?",
+        "texto_ajuda": "Pense no quanto você pode opinar ou decidir sobre como faz suas tarefas.",
+        "inverter_pontuacao": True
+    }
+]
+
 # --- BANCO DE DADOS ---
 # O sistema agora usa a conexão segura com a HostGator para testes
 DB_URL = st.secrets["db_url"]
@@ -61,7 +86,23 @@ class Funcionario(Base):
     data_nasc = Column(String(20), nullable=False)
     status = Column(String(50), default="Pendente")
     empresa = relationship("Empresa", back_populates="funcionarios")
+    sessao_pesquisa = relationship("SurveySession", backref="funcionario", cascade="all, delete-orphan")
     __table_args__ = (UniqueConstraint('empresa_id', 'cpf', name='_empresa_cpf_uc'),)
+
+class SurveySession(Base):
+    __tablename__ = 'survey_sessions'
+    id = Column(Integer, primary_key=True)
+    funcionario_id = Column(Integer, ForeignKey('funcionarios.id'), nullable=False)
+    data_criacao = Column(String(20), default=lambda: datetime.now().strftime('%d/%m/%Y %H:%M:%S'))
+    respostas = relationship("Answer", back_populates="sessao", cascade="all, delete-orphan")
+
+class Answer(Base):
+    __tablename__ = 'answers'
+    id = Column(Integer, primary_key=True)
+    session_id = Column(Integer, ForeignKey('survey_sessions.id'), nullable=False)
+    pergunta_id = Column(Integer, nullable=False)
+    valor = Column(Integer, nullable=False)
+    sessao = relationship("SurveySession", back_populates="respostas")
 
 # 1. Protegendo o Motor contra as quedas de conexão da HostGator (A Vacina)
 @st.cache_resource
@@ -127,21 +168,71 @@ def login_colaborador(empresa):
             else:
                 st.error("Dados não encontrados. Verifique seu CPF e Data de Nascimento.")
 
+def renderizar_questionario_copsoq(user):
+    st.title("📋 Questionário COPSOQ II")
+    st.write("Por favor, responda a todas as perguntas abaixo com sinceridade.")
+    
+    respostas_usuario = {}
+    
+    for p in PERGUNTAS_COPSOQ:
+        with st.container(border=True):
+            st.markdown(f"**{p['enunciado']}**")
+            st.caption(p['texto_ajuda'])
+            
+            # Opções Likert 1-5
+            # label_visibility="collapsed" para ergonomia mobile conforme pedido
+            res_val = st.radio(
+                f"Resposta para {p['id']}",
+                options=[1, 2, 3, 4, 5],
+                format_func=lambda x: {
+                    1: "1 - Nunca/Quase nunca",
+                    2: "2 - Raramente",
+                    3: "3 - Às vezes",
+                    4: "4 - Frequentemente",
+                    5: "5 - Sempre/Sempre mesmo"
+                }[x],
+                horizontal=False,
+                key=f"q_{p['id']}",
+                label_visibility="collapsed"
+            )
+            respostas_usuario[p['id']] = res_val
+
+    st.divider()
+    if st.button("🚀 ENVIAR RESPOSTAS", use_container_width=True, type="primary"):
+        db = get_db()
+        try:
+            # 1. Criar sessão de pesquisa
+            nova_sessao = SurveySession(funcionario_id=user.id)
+            db.add(nova_sessao)
+            db.flush() # Para pegar o ID da sessão
+            
+            # 2. Salvar respostas
+            for p_id, valor in respostas_usuario.items():
+                nova_resposta = Answer(
+                    session_id=nova_sessao.id,
+                    pergunta_id=p_id,
+                    valor=valor
+                )
+                db.add(nova_resposta)
+            
+            # 3. Atualizar status do funcionário
+            db_user = db.query(Funcionario).filter(Funcionario.id == user.id).first()
+            db_user.status = "Concluído"
+            
+            db.commit()
+            st.success("Questionário enviado com sucesso!")
+            st.balloons()
+            st.session_state.clear()
+            st.rerun()
+        except Exception as e:
+            db.rollback()
+            st.error(f"Erro ao salvar: {e}")
+        finally:
+            db.close()
+
 def portal_colaborador(empresa, user):
     st.title(f"Olá, {user.nome}")
-    st.components.v1.iframe(empresa.link_forms, height=800, scrolling=True)
-    st.divider()
-    st.warning("⚠️ Importante: Após finalizar no formulário acima, confirme sua participação abaixo.")
-    
-    terminou = st.checkbox('Confirmo que terminei de responder.', key='confirma_form')
-    if st.button("✅ JÁ FINALIZEI O PREENCHIMENTO", use_container_width=True, type="primary", disabled=not terminou):
-        db = get_db()
-        db_user = db.query(Funcionario).get(user.id)
-        db_user.status = "Concluído"
-        db.commit()
-        st.success("Participação registrada!")
-        st.session_state.clear()
-        st.rerun()
+    renderizar_questionario_copsoq(user)
 
 # --- ÁREA ADMINISTRATIVA ---
 def admin_portal():
