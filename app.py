@@ -7,13 +7,13 @@ from sqlalchemy.orm import sessionmaker, relationship, declarative_base
 import plotly.express as px
 
 # --- CONFIGURAÇÃO E CONSTANTES ---
-st.set_page_config(page_title="SST - Pesquisas", layout="wide", initial_sidebar_state="collapsed")
+# Alterado para 'expanded' para o menu do Admin aparecer aberto
+st.set_page_config(page_title="SST - Pesquisas", layout="wide", initial_sidebar_state="expanded")
 
 # --- OCULTAR ELEMENTOS DO STREAMLIT (FORÇA MÁXIMA) ---
 hide_st_style = """
             <style>
-            /* 1. Ocultar Header inteiro (onde fica o botão Share, Deploy e Star) */
-            [data-testid="stHeader"] {display: none !important;}
+            /* 1. Ocultar botões de Deploy e Menu Superior (mantendo a barra superior para a setinha do menu funcionar) */
             .stAppDeployButton {display: none !important;}
             [data-testid="stDeployButton"] {display: none !important;}
             #MainMenu {visibility: hidden !important;}
@@ -36,7 +36,7 @@ hide_st_style = """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
 # Endereço base para geração de links
-BASE_URL = "https://abelmar-copsoq.streamlit.app" 
+BASE_URL = "https://formulario-psic2.streamlit.app" 
 
 # --- BANCO DE DADOS ---
 # O sistema agora ignora o arquivo local e usa a conexão segura com a HostGator
@@ -46,7 +46,6 @@ Base = declarative_base()
 class Empresa(Base):
     __tablename__ = 'empresas'
     id = Column(Integer, primary_key=True)
-    # Limites de caracteres adicionados para compatibilidade com MySQL
     codigo_empresa = Column(String(50), unique=True, nullable=False)
     nome_empresa = Column(String(200), nullable=False)
     senha_rh = Column(String(100), nullable=False) 
@@ -57,7 +56,6 @@ class Funcionario(Base):
     __tablename__ = 'funcionarios'
     id = Column(Integer, primary_key=True)
     empresa_id = Column(Integer, ForeignKey('empresas.id'), nullable=False)
-    # Limites de caracteres adicionados para compatibilidade com MySQL
     cpf = Column(String(20), nullable=False)
     nome = Column(String(200), nullable=False)
     data_nasc = Column(String(20), nullable=False)
