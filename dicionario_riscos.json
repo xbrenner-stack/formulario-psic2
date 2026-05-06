@@ -1,0 +1,380 @@
+{
+    "Altas exigências cognitivas": {
+        "definicao": "Trabalho que requer foco intenso e contínuo, memorização de muitas informações e tomada de decisões complexas, aumentando a fadiga mental.",
+        "cids": "F41, F92, R45",
+        "fontes": "Complexidade técnica elevada das tarefas; Interrupções frequentes exigindo retomada de raciocínio; Excesso de informações simultâneas para análise; Falta de padronização ou automação de processos complexos.",
+        "plano": "Implementar rodízio de tarefas complexas com atividades mais leves; Padronizar processos para reduzir a carga de memória; Reduzir ruídos e interrupções no ambiente; Garantir pausas mentais periódicas.",
+        "acompanhamento": "Análise da taxa de erros operacionais; Implementação de medidas para reduzir a carga cognitiva (ex: pausas, rodízio); Monitoramento da fadiga mental."
+    },
+    "Exigências cognitivas": {
+        "definicao": "Trabalho que requer foco intenso e contínuo, memorização de muitas informações e tomada de decisões complexas, aumentando a fadiga mental.",
+        "cids": "F41, F92, R45",
+        "fontes": "Complexidade técnica elevada das tarefas; Interrupções frequentes exigindo retomada de raciocínio; Excesso de informações simultâneas para análise; Falta de padronização ou automação de processos complexos.",
+        "plano": "Implementar rodízio de tarefas complexas com atividades mais leves; Padronizar processos para reduzir a carga de memória; Reduzir ruídos e interrupções no ambiente; Garantir pausas mentais periódicas.",
+        "acompanhamento": "Análise da taxa de erros operacionais; Implementação de medidas para reduzir a carga cognitiva (ex: pausas, rodízio); Monitoramento da fadiga mental."
+    },
+    "Altas exigências emocionais": {
+        "definicao": "Necessidade constante de controle emocional (trabalho emocional) para lidar com clientes, pacientes, colegas ou situações estressantes/de vulnerabilidade.",
+        "cids": "F51, R45, Z60",
+        "fontes": "Contato direto com público difícil, reclamações ou pessoas em situação de vulnerabilidade; Exigência organizacional de \"estar sempre sorrindo\"; Falta de suporte gerencial para lidar com conflitos externos.",
+        "plano": "Treinar a equipe em inteligência emocional e gestão de conflitos; Estabelecer protocolos claros de como agir com clientes abusivos; Criar espaços seguros de descompressão após atendimentos difíceis.",
+        "acompanhamento": "Identificação das funções com maior demanda emocional; Supervisão de apoio para os trabalhadores expostos; Monitoramento de queixas comportamentais ou atestados."
+    },
+    "Exigências emocionais": {
+        "definicao": "Necessidade constante de controle emocional (trabalho emocional) para lidar com clientes, pacientes, colegas ou situações estressantes/de vulnerabilidade.",
+        "cids": "F51, R45, Z60",
+        "fontes": "Contato direto com público difícil, reclamações ou pessoas em situação de vulnerabilidade; Exigência organizacional de \"estar sempre sorrindo\"; Falta de suporte gerencial para lidar com conflitos externos.",
+        "plano": "Treinar a equipe em inteligência emocional e gestão de conflitos; Estabelecer protocolos claros de como agir com clientes abusivos; Criar espaços seguros de descompressão após atendimentos difíceis.",
+        "acompanhamento": "Identificação das funções com maior demanda emocional; Supervisão de apoio para os trabalhadores expostos; Monitoramento de queixas comportamentais ou atestados."
+    },
+    "Baixa autoeficácia": {
+        "definicao": "Sentimento de incapacidade do trabalhador em lidar com os problemas e demandas do seu trabalho, gerando insegurança profissional constante.",
+        "cids": "F32, F41, R45",
+        "fontes": "Delegação de tarefas sem o treinamento adequado; Feedback focado apenas em falhas; Mudanças tecnológicas sem capacitação prévia; Metas irreais que geram sensação constante de fracasso.",
+        "plano": "Implementar matriz de treinamento baseada em competências; Oferecer feedback construtivo focando em pontos fortes; Estabelecer metas atingíveis (metodologia SMART).",
+        "acompanhamento": "Avaliações de desempenho evolutivas; Levantamento de Necessidades de Treinamento (LNT); Pesquisas de clima organizacional."
+    },
+    "Auto-eficácia": {
+        "definicao": "Sentimento de incapacidade do trabalhador em lidar com os problemas e demandas do seu trabalho, gerando insegurança profissional constante.",
+        "cids": "F32, F41, R45",
+        "fontes": "Delegação de tarefas sem o treinamento adequado; Feedback focado apenas em falhas; Mudanças tecnológicas sem capacitação prévia; Metas irreais que geram sensação constante de fracasso.",
+        "plano": "Implementar matriz de treinamento baseada em competências; Oferecer feedback construtivo focando em pontos fortes; Estabelecer metas atingíveis (metodologia SMART).",
+        "acompanhamento": "Avaliações de desempenho evolutivas; Levantamento de Necessidades de Treinamento (LNT); Pesquisas de clima organizacional."
+    },
+    "Baixa confiança entre pares": {
+        "definicao": "Ambiente caracterizado por fofocas, retenção de informações entre colegas e desconfiança estrutural sobre as intenções dos membros da equipe.",
+        "cids": "F41, R45, Z60",
+        "fontes": "Cultura de competição predatória fomentada pela empresa; Falta de dinâmicas de integração e trabalho em equipe; Metas individuais que prejudicam o resultado coletivo.",
+        "plano": "Substituir incentivos puramente individuais por metas de equipe; Promover dinâmicas de integração; Combater ativamente fofocas com comunicação transparente.",
+        "acompanhamento": "Pesquisa de clima (fator apoio e colaboração intersetorial); Monitoramento de conflitos interpessoais relatados ao RH; Dinâmicas de observação de grupo."
+    },
+    "Confiança horizontal": {
+        "definicao": "Ambiente caracterizado por fofocas, retenção de informações entre colegas e desconfiança estrutural sobre as intenções dos membros da equipe.",
+        "cids": "F41, R45, Z60",
+        "fontes": "Cultura de competição predatória fomentada pela empresa; Falta de dinâmicas de integração e trabalho em equipe; Metas individuais que prejudicam o resultado coletivo.",
+        "plano": "Substituir incentivos puramente individuais por metas de equipe; Promover dinâmicas de integração; Combater ativamente fofocas com comunicação transparente.",
+        "acompanhamento": "Pesquisa de clima (fator apoio e colaboração intersetorial); Monitoramento de conflitos interpessoais relatados ao RH; Dinâmicas de observação de grupo."
+    },
+    "Baixa confiança na gerência": {
+        "definicao": "Percepção de que a liderança retém informações, quebra promessas frequentemente ou não age visando o bem-estar dos trabalhadores.",
+        "cids": "F32, F41, R45",
+        "fontes": "Comunicação dúbia ou contraditória por parte dos líderes; Promessas de promoção ou melhorias não cumpridas; Decisões tomadas \"a portas fechadas\" sem explicação à equipe.",
+        "plano": "Estabelecer rotinas de comunicação abertas (ex: reuniões de alinhamento transparentes); Treinar lideranças em comunicação assertiva e ética; Cumprir estritamente as políticas de RH divulgadas.",
+        "acompanhamento": "Pesquisa de clima (índice de confiança no líder); Avaliação ascendente (liderados avaliando líderes); Acompanhamento de promessas documentadas em atas."
+    },
+    "Confiança vertical": {
+        "definicao": "Percepção de que a liderança retém informações, quebra promessas frequentemente ou não age visando o bem-estar dos trabalhadores.",
+        "cids": "F32, F41, R45",
+        "fontes": "Comunicação dúbia ou contraditória por parte dos líderes; Promessas de promoção ou melhorias não cumpridas; Decisões tomadas \"a portas fechadas\" sem explicação à equipe.",
+        "plano": "Estabelecer rotinas de comunicação abertas (ex: reuniões de alinhamento transparentes); Treinar lideranças em comunicação assertiva e ética; Cumprir estritamente as políticas de RH divulgadas.",
+        "acompanhamento": "Pesquisa de clima (índice de confiança no líder); Avaliação ascendente (liderados avaliando líderes); Acompanhamento de promessas documentadas em atas."
+    },
+    "Baixa possibilidades de desenvolvimento": {
+        "definicao": "Trabalho que não permite ao funcionário aprender coisas novas, usar suas habilidades plenamente ou vislumbrar progressão de carreira.",
+        "cids": "F32, Z56, Z73",
+        "fontes": "Fragmentação extrema das tarefas; Ausência de plano de cargos e salários; Falta de investimento em capacitação técnica; Contratação externa constante ignorando a equipe interna.",
+        "plano": "Implementar Plano de Cargos e Salários (PCS) transparente; Criar programas de recrutamento interno preferencial; Adotar rotação de tarefas para ampliar o leque de habilidades da equipe.",
+        "acompanhamento": "Levantamento das necessidades de treinamento; Implementação de programas de desenvolvimento individual (PDI); Acompanhamento da taxa de promoções internas."
+    },
+    "Possibilidades de desenvolvimento": {
+        "definicao": "Trabalho que não permite ao funcionário aprender coisas novas, usar suas habilidades plenamente ou vislumbrar progressão de carreira.",
+        "cids": "F32, Z56, Z73",
+        "fontes": "Fragmentação extrema das tarefas; Ausência de plano de cargos e salários; Falta de investimento em capacitação técnica; Contratação externa constante ignorando a equipe interna.",
+        "plano": "Implementar Plano de Cargos e Salários (PCS) transparente; Criar programas de recrutamento interno preferencial; Adotar rotação de tarefas para ampliar o leque de habilidades da equipe.",
+        "acompanhamento": "Levantamento das necessidades de treinamento; Implementação de programas de desenvolvimento individual (PDI); Acompanhamento da taxa de promoções internas."
+    },
+    "Baixa possibilidade de desenvolvimento": {
+        "definicao": "Trabalho que não permite ao funcionário aprender coisas novas, usar suas habilidades plenamente ou vislumbrar progressão de carreira.",
+        "cids": "F32, Z56, Z73",
+        "fontes": "Fragmentação extrema das tarefas; Ausência de plano de cargos e salários; Falta de investimento em capacitação técnica; Contratação externa constante ignorando a equipe interna.",
+        "plano": "Implementar Plano de Cargos e Salários (PCS) transparente; Criar programas de recrutamento interno preferencial; Adotar rotação de tarefas para ampliar o leque de habilidades da equipe.",
+        "acompanhamento": "Levantamento das necessidades de treinamento; Implementação de programas de desenvolvimento individual (PDI); Acompanhamento da taxa de promoções internas."
+    },
+    "Possibilidade de desenvolvimento": {
+        "definicao": "Trabalho que não permite ao funcionário aprender coisas novas, usar suas habilidades plenamente ou vislumbrar progressão de carreira.",
+        "cids": "F32, Z56, Z73",
+        "fontes": "Fragmentação extrema das tarefas; Ausência de plano de cargos e salários; Falta de investimento em capacitação técnica; Contratação externa constante ignorando a equipe interna.",
+        "plano": "Implementar Plano de Cargos e Salários (PCS) transparente; Criar programas de recrutamento interno preferencial; Adotar rotação de tarefas para ampliar o leque de habilidades da equipe.",
+        "acompanhamento": "Levantamento das necessidades de treinamento; Implementação de programas de desenvolvimento individual (PDI); Acompanhamento da taxa de promoções internas."
+    },
+    "Burnout": {
+        "definicao": "Síndrome resultante do estresse crônico no local de trabalho não gerenciado com sucesso, caracterizada por exaustão, cinismo e ineficácia.",
+        "cids": "Z73.0, F43",
+        "fontes": "Sobrecarga quantitativa e emocional prolongada; Desequilíbrio entre esforço e recompensa; Falta de autonomia somada a altas exigências; Assédio e liderança tóxica.",
+        "plano": "Readequação imediata da carga de trabalho; Encaminhamento médico/psicológico pelo PCMSO; Auditoria imediata na liderança e nos processos do setor afetado.",
+        "acompanhamento": "Acompanhamento epidemiológico via PCMSO (ASOs periódicos); Monitoramento de absenteísmo longo; Entrevistas estruturadas de readaptação funcional."
+    },
+    "Comportamentos ofensivos": {
+        "definicao": "Exposição a práticas abusivas diretas ou indiretas, como assédio moral, sexual, ameaças verbais, discriminação ou violência física no ambiente de trabalho.",
+        "cids": "F32, F41, F43, R45, Z60",
+        "fontes": "Cultura organizacional que tolera comportamentos abusivos; Falta de políticas claras contra discriminação/assédio; Desequilíbrio de poder; Contato desprotegido com público externo agressivo.",
+        "plano": "Implementar política de tolerância zero e código de conduta; Criar canais de denúncia confidenciais; Oferecer treinamento sobre ética e combate ao assédio para todos os níveis.",
+        "acompanhamento": "Monitoramento e investigação rigorosa de todas as denúncias; Acompanhamento do número de incidentes registrados; Melhoria nos índices de segurança psicológica."
+    },
+    "Conflito trabalho/ família": {
+        "definicao": "Exigências de tempo e energia do trabalho que invadem a vida privada de forma contínua, prejudicando o convívio familiar e o tempo de recuperação.",
+        "cids": "F41, F51, Z73",
+        "fontes": "Horários inflexíveis ou extensão habitual da jornada; Comunicação do trabalho (WhatsApp, e-mail) fora do expediente; Escalas imprevisíveis; Dificuldade em conciliar vida pessoal.",
+        "plano": "Implementar política de \"Direito à Desconexão\"; Garantir folgas adequadas; Flexibilizar horários ou adotar banco de horas compensatório; Planejar escalas com antecedência.",
+        "acompanhamento": "Monitoramento das horas extras e banco de horas; Pesquisas com trabalhadores sobre o equilíbrio vida/trabalho; Análise de faltas não justificadas."
+    },
+    "Conflito trabalho/família": {
+        "definicao": "Exigências de tempo e energia do trabalho que invadem a vida privada de forma contínua, prejudicando o convívio familiar e o tempo de recuperação.",
+        "cids": "F41, F51, Z73",
+        "fontes": "Horários inflexíveis ou extensão habitual da jornada; Comunicação do trabalho (WhatsApp, e-mail) fora do expediente; Escalas imprevisíveis; Dificuldade em conciliar vida pessoal.",
+        "plano": "Implementar política de \"Direito à Desconexão\"; Garantir folgas adequadas; Flexibilizar horários ou adotar banco de horas compensatório; Planejar escalas com antecedência.",
+        "acompanhamento": "Monitoramento das horas extras e banco de horas; Pesquisas com trabalhadores sobre o equilíbrio vida/trabalho; Análise de faltas não justificadas."
+    },
+    "Conflitos laborais": {
+        "definicao": "Relações interpessoais deterioradas, gerando discussões constantes, hostilidade, desorganização e dificuldade severa de cooperação.",
+        "cids": "F32, F41, R45, R53",
+        "fontes": "Liderança autocrática ou inconsistente; Falta de clareza nas funções e responsabilidades; Comunicação ineficaz; Competição excessiva entre os trabalhadores.",
+        "plano": "Treinar líderes em habilidades de mediação de conflitos; Definir claramente funções e limites; Promover cultura de diálogo e colaboração mediada pelo RH.",
+        "acompanhamento": "Análise da estrutura organizacional e conflitos de competência; Canais de mediação de atritos; Pesquisas de clima organizacional contínuas."
+    },
+    "Déficit nas recompensas": {
+        "definicao": "Sensação permanente de que o esforço despendido no trabalho não é compensado adequadamente por salário, reconhecimento ou estabilidade.",
+        "cids": "F41, F43, F92, R45",
+        "fontes": "Salários defasados ou percebidos como injustos; Falta de reconhecimento e recompensa por parte da gerência; Ausência de clareza nas políticas de promoção.",
+        "plano": "Revisar política de remuneração garantindo alinhamento de mercado; Instituir programas formais de reconhecimento de mérito; Treinar gestores para a prática do feedback positivo.",
+        "acompanhamento": "Pesquisa salarial periódica; Revisão e comunicação da política de remuneração; Avaliação do índice de turnover voluntário."
+    },
+    "Recompensas": {
+        "definicao": "Sensação permanente de que o esforço despendido no trabalho não é compensado adequadamente por salário, reconhecimento ou estabilidade.",
+        "cids": "F41, F43, F92, R45",
+        "fontes": "Salários defasados ou percebidos como injustos; Falta de reconhecimento e recompensa por parte da gerência; Ausência de clareza nas políticas de promoção.",
+        "plano": "Revisar política de remuneração garantindo alinhamento de mercado; Instituir programas formais de reconhecimento de mérito; Treinar gestores para a prática do feedback positivo.",
+        "acompanhamento": "Pesquisa salarial periódica; Revisão e comunicação da política de remuneração; Avaliação do índice de turnover voluntário."
+    },
+    "Déficit nas recpompensas": {
+        "definicao": "Sensação permanente de que o esforço despendido no trabalho não é compensado adequadamente por salário, reconhecimento ou estabilidade.",
+        "cids": "F41, F43, F92, R45",
+        "fontes": "Salários defasados ou percebidos como injustos; Falta de reconhecimento e recompensa por parte da gerência; Ausência de clareza nas políticas de promoção.",
+        "plano": "Revisar política de remuneração garantindo alinhamento de mercado; Instituir programas formais de reconhecimento de mérito; Treinar gestores para a prática do feedback positivo.",
+        "acompanhamento": "Pesquisa salarial periódica; Revisão e comunicação da política de remuneração; Avaliação do índice de turnover voluntário."
+    },
+    "Estresse": {
+        "definicao": "Estado de tensão contínua e dificuldade em relaxar, resultado de um desequilíbrio persistente entre demandas frequentes e a capacidade de enfrentamento.",
+        "cids": "F43, F92, R45, G44",
+        "fontes": "Carga de trabalho excessiva associada a prazos apertados; Falta de controle sobre a execution; Clima organizacional negativo; Insegurança no emprego.",
+        "plano": "Melhorar o planejamento de demandas; Equilibrar autonomia; Oferecer treinamento em gestão de tempo; Disponibilizar ginástica laboral ou técnicas de descompressão.",
+        "acompanhamento": "Identificação sistêmica de fontes de tensão; Acompanhamento de indicadores de saúde e queixas somáticas; Relatórios de produtividade versus erros operacionais."
+    },
+    "Stress": {
+        "definicao": "Estado de tensão contínua e dificuldade em relaxar, resultado de um desequilíbrio persistente entre demandas frequentes e a capacidade de enfrentamento.",
+        "cids": "F43, F92, R45, G44",
+        "fontes": "Carga de trabalho excessiva associada a prazos apertados; Falta de controle sobre a execução; Clima organizacional negativo; Insegurança no emprego.",
+        "plano": "Melhorar o planejamento de demandas; Equilibrar autonomia; Oferecer treinamento em gestão de tempo; Disponibilizar ginástica laboral ou técnicas de descompressão.",
+        "acompanhamento": "Identificação sistêmica de fontes de tensão; Acompanhamento de indicadores de saúde e queixas somáticas; Relatórios de produtividade versus erros operacionais."
+    },
+    "Exigências quantitativas": {
+        "definicao": "Volume de trabalho incompatível com o tempo disponível para a sua execução orgânica, obrigando o trabalhador a pular etapas ou acelerar excessivamente.",
+        "cids": "F41, F92, R45",
+        "fontes": "Metas irrealistas; Falta de pessoal adequado para o volume; Falta de planejamento; Cultura que valoriza horas excessivas; Ausência de automação em tarefas repetitivas.",
+        "plano": "Otimizar processos e distribuir tarefas de forma equitativa; Analisar dimensionamento de pessoal; Definir prioridades claras e metas alcançáveis.",
+        "acompanhamento": "Análise da carga de trabalho (tempos e movimentos); Monitoramento diário de horas extras e acúmulo de backlog; Pesquisas de percepção de sobrecarga."
+    },
+    "Falta de saúde geral": {
+        "definicao": "Percepção do próprio trabalhador de que sua saúde física ou mental está ruim ou se deteriorando especificamente devido ao ambiente laboral.",
+        "cids": "R53, Z73",
+        "fontes": "Condições de trabalho degradantes ou insalubres; Ausência de pausas; Sedentarismo forçado; Esgotamento transferido para sintomas somáticos corporais.",
+        "plano": "Melhorar condições ambientais (AET); Implementar Programa de Qualidade de Vida no Trabalho (PQVT); Incentivar higiene ocupacional e ergonomia.",
+        "acompanhamento": "Análise do relatório anual do PCMSO; Acompanhamento de queixas no ambulatório médico; Controle de atestados de curta duração."
+    },
+    "Saúde Geral": {
+        "definicao": "Percepção do próprio trabalhador de que sua saúde física ou mental está ruim ou se deteriorando especificamente devido ao ambiente laboral.",
+        "cids": "R53, Z73",
+        "fontes": "Condições de trabalho degradantes ou insalubres; Ausência de pausas; Sedentarismo forçado; Esgotamento transferido para sintomas somáticos corporais.",
+        "plano": "Melhorar condições ambientais (AET); Implementar Programa de Qualidade de Vida no Trabalho (PQVT); Incentivar higiene ocupacional e ergonomia.",
+        "acompanhamento": "Análise do relatório anual do PCMSO; Acompanhamento de queixas no ambulatório médico; Controle de atestados de curta duração."
+    },
+    "Injustiça e desrespeito": {
+        "definicao": "Tratamento desigual, decisões arbitrárias da gestão, distribuição injusta de benefícios ou ausência de critérios claros para sanções.",
+        "cids": "F32, F41, F43, R45, R53, Z56",
+        "fontes": "Tratamento desigual entre trabalhadores; Decisões arbitrárias de lideranças; Falta de políticas claras; Favoritismo ou aplicação inconsistente das regras.",
+        "plano": "Definir políticas e normas claras; Capacitar gestores para aplicar regras de forma igualitária; Utilizar critérios objetivos documentados para promoções e sanções.",
+        "acompanhamento": "Revisão contínua de políticas internas; Treinamentos de liderança sobre justiça organizacional; Auditoria em canais de denúncia."
+    },
+    "Justiça e respeito": {
+        "definicao": "Tratamento desigual, decisões arbitrárias da gestão, distribuição injusta de benefícios ou ausência de critérios claros para sanções.",
+        "cids": "F32, F41, F43, R45, R53, Z56",
+        "fontes": "Tratamento desigual entre trabalhadores; Decisões arbitrárias de lideranças; Falta de políticas claras; Favoritismo ou aplicação inconsistente das regras.",
+        "plano": "Definir políticas e normas claras; Capacitar gestores para aplicar regras de forma igualitária; Utilizar critérios objetivos documentados para promoções e sanções.",
+        "acompanhamento": "Revisão contínua de políticas internas; Treinamentos de liderança sobre justiça organizacional; Auditoria em canais de denúncia."
+    },
+    "Insatisfação no trabalho": {
+        "definicao": "Descontentamento geral com as perspectivas da empresa, condições físicas, uso das próprias capacidades operacionais e a função desempenhada.",
+        "cids": "F32, F43, F92, R45, Z73",
+        "fontes": "Falta de propósito; Clima organizacional negativo; Trabalhos muito abaixo da capacidade técnica; Falta de reconhecimento.",
+        "plano": "Implementar programas de reconhecimento; Readequar atividades ao perfil comportamental do colaborador; Melhorar a comunicação de propósito (impacto do trabalho).",
+        "acompanhamento": "Acompanhamento do engajamento (e-NPS); Avaliação da rotatividade espontânea; Entrevistas aprofundadas de desligamento."
+    },
+    "Satisfação no trabalho": {
+        "definicao": "Descontentamento geral com as perspectivas da empresa, condições físicas, uso das próprias capacidades operacionais e a função desempenhada.",
+        "cids": "F32, F43, F92, R45, Z73",
+        "fontes": "Falta de propósito; Clima organizacional negativo; Trabalhos muito abaixo da capacidade técnica; Falta de reconhecimento.",
+        "plano": "Implementar programas de reconhecimento; Readequar atividades ao perfil comportamental do colaborador; Melhorar a comunicação de propósito (impacto do trabalho).",
+        "acompanhamento": "Acompanhamento do engajamento (e-NPS); Avaliação da rotatividade espontânea; Entrevistas aprofundadas de desligamento."
+    },
+    "Insegurança laboral": {
+        "definicao": "Preocupação e ansiedade constantes com a possibilidade de perda do emprego, rebaixamento de cargo ou perda repentina de direitos/salário.",
+        "cids": "F32, F41, F43, F92, R45, Z60",
+        "fontes": "Instabilidade econômica da empresa; Boatos sobre cortes; Automação substituindo funções sem transparência; Uso de ameaça de demissão como técnica de gestão.",
+        "plano": "Comunicar claramente perspectivas da empresa; Desenvolver planos de contingência transparentes; Proibir gestão baseada em coação/ameaça.",
+        "acompanhamento": "Comunicação em murais oficiais; Reuniões periódicas de transparência de resultados; Monitoramento da sensação de segurança nas pesquisas de clima."
+    },
+    "Má qualidade da liderança": {
+        "definicao": "Chefia imediata ineficiente no planejamento estrutural das tarefas, que não prioriza a satisfação da equipe e tem baixa capacidade analítica para resolver conflitos.",
+        "cids": "F32, F41, R45",
+        "fontes": "Líderes não capacitados para gerir pessoas; Falta de empatia; Planejamento ineficiente; Incapacidade de resolver conflitos internos.",
+        "plano": "Desenvolver um programa contínuo de capacitação de lideranças (PDL); Promover acompanhamento de RH próximo aos novos gestores; Focar em soft skills.",
+        "acompanhamento": "Avaliação 360 graus obrigatória; Índice de rotatividade por setor/gestor; Feedback estruturado para calibração gerencial."
+    },
+    "Qualidade de liderança": {
+        "definicao": "Chefia imediata ineficiente no planejamento estrutural das tarefas, que não prioriza a satisfação da equipe e tem baixa capacidade analítica para resolver conflitos.",
+        "cids": "F32, F41, R45",
+        "fontes": "Líderes não capacitados para gerir pessoas; Falta de empatia; Planejamento ineficiente; Incapacidade de resolver conflitos internos.",
+        "plano": "Desenvolver um programa contínuo de capacitação de lideranças (PDL); Promover acompanhamento de RH próximo aos novos gestores; Focar em soft skills.",
+        "acompanhamento": "Avaliação 360 graus obrigatória; Índice de rotatividade por setor/gestor; Feedback estruturado para calibração gerencial."
+    },
+    "Pouca cooperação no trabalho": {
+        "definicao": "Ambiente onde o trabalho se torna solitário, sem ajuda mútua fluída entre departamentos, com isolamento excessivo das tarefas.",
+        "cids": "F41, Z60, R45",
+        "fontes": "Layouts que isolam os trabalhadores; Hierarquias muito rígidas; Metas punitivas que incentivam competição individual em detrimento da equipe.",
+        "plano": "Revisar estrutura de metas para incluir indicadores de equipe; Promover reuniões interdisciplinares; Adequar o layout para facilitar comunicação.",
+        "acompanhamento": "Pesquisa de satisfação com integração intersetorial; Análise de gargalos nos processos entre áreas; Dinâmicas de observação de grupo."
+    },
+    "Comunidade social no trabalho": {
+        "definicao": "Ambiente onde o trabalho se torna solitário, sem ajuda mútua fluída entre departamentos, com isolamento excessivo das tarefas.",
+        "cids": "F41, Z60, R45",
+        "fontes": "Layouts que isolam os trabalhadores; Hierarquias muito rígidas; Metas punitivas que incentivam competição individual em detrimento da equipe.",
+        "plano": "Revisar estrutura de metas para incluir indicadores de equipe; Promover reuniões interdisciplinares; Adequar o layout para facilitar comunicação.",
+        "acompanhamento": "Pesquisa de satisfação com integração intersetorial; Análise de gargalos nos processos entre áreas; Dinâmicas de observação de grupo."
+    },
+    "Pouca influência no trabalho": {
+        "definicao": "Falta de margem de autonomia; o trabalhador não tem voz ativa sobre o volume do que faz ou metodologias de como realizar as entregas.",
+        "cids": "F32, F41, F92, R45, Z73",
+        "fontes": "Liderança autocrática; Trabalhador impedido de opinar sobre processos; Ritmo e métodos engessados por máquinas ou sistemas rígidos.",
+        "plano": "Delegar responsabilidades gradativas; Abrir fóruns para sugestões de melhoria contínua; Flexibilizar a execução das tarefas mantendo apenas a meta do resultado.",
+        "acompanhamento": "Número de ideias/sugestões da base acatadas pela gerência; Avaliação ergonômica voltada à autonomia; Monitoramento do nível de engajamento."
+    },
+    "Influência no trabalho": {
+        "definicao": "Falta de margem de autonomia; o trabalhador não tem voz ativa sobre o volume do que faz ou metodologias de como realizar as entregas.",
+        "cids": "F32, F41, F92, R45, Z73",
+        "fontes": "Liderança autocrática; Trabalhador impedido de opinar sobre processos; Ritmo e métodos engessados por máquinas ou sistemas rígidos.",
+        "plano": "Delegar responsabilidades gradativas; Abrir fóruns para sugestões de melhoria contínua; Flexibilizar a execução das tarefas mantendo apenas a meta do resultado.",
+        "acompanhamento": "Número de ideias/sugestões da base acatadas pela gerência; Avaliação ergonômica voltada à autonomia; Monitoramento do nível de engajamento."
+    },
+    "Pouca previsibilidade de rotina": {
+        "definicao": "Situação gerada quando a gestão omite informações cruciais; decisões e mudanças chegam de surpresa, impossibilitando a organização prévia do funcionário.",
+        "cids": "F41, R45, Z56",
+        "fontes": "Mudanças súbitas de turnos, locais ou softwares sem aviso prévio; Retenção de informações estratégicas; Gestão baseada no imediatismo.",
+        "plano": "Definir e cumprir antecedência mínima para mudanças de escala ou projetos; Implementar ferramentas de 'Gestão à Vista'; Fortalecer o fluxo de comunicação Top-Down.",
+        "acompanhamento": "Auditoria de prazos de comunicação de escalas; Pesquisas focadas na eficácia da comunicação interna; Monitoramento de estresse por retrabalho."
+    },
+    "Previsibilidade": {
+        "definicao": "Situação gerada quando a gestão omite informações cruciais; decisões e mudanças chegam de surpresa, impossibilitando a organização prévia do funcionário.",
+        "cids": "F41, R45, Z56",
+        "fontes": "Mudanças súbitas de turnos, locais ou softwares sem aviso prévio; Retenção de informações estratégicas; Gestão baseada no imediatismo.",
+        "plano": "Definir e cumprir antecedência mínima para mudanças de escala ou projetos; Implementar ferramentas de 'Gestão à Vista'; Fortalecer o fluxo de comunicação Top-Down.",
+        "acompanhamento": "Auditoria de prazos de comunicação de escalas; Pesquisas focadas na eficácia da comunicação interna; Monitoramento de estresse por retrabalho."
+    },
+    "Pouca transparência do papel laboral desempenhado": {
+        "definicao": "Insegurança decorrente do fato de o trabalhador não saber exatamente o que a gerência espera dele, quais são seus objetivos claros ou as fronteiras exatas de sua responsabilidade.",
+        "cids": "F32, F41, F92",
+        "fontes": "Ausência de descrições de cargo claras; Duplicidade de comando (dois chefes); Expectativas ambíguas e integração (onboarding) falha.",
+        "plano": "Documentar a matriz de responsabilidades (CBOs detalhados); Garantir unidade de comando; Instituir processo rigoroso de integração de novos funcionários.",
+        "acompanhamento": "Revisão e atualização periódica das descrições de cargos; Validação do entendimento durante as avaliações de desempenho; Monitoramento de conflitos de papel."
+    },
+    "Transparência do papel laboral desempenhado": {
+        "definicao": "Insegurança decorrente do fato de o trabalhador não saber exatamente o que a gerência espera dele, quais são seus objetivos claros ou as fronteiras exatas de sua responsabilidade.",
+        "cids": "F32, F41, F92",
+        "fontes": "Ausência de descrições de cargo claras; Duplicidade de comando (dois chefes); Expectativas ambíguas e integração (onboarding) falha.",
+        "plano": "Documentar a matriz de responsabilidades (CBOs detalhados); Garantir unidade de comando; Instituir processo rigoroso de integração de novos funcionários.",
+        "acompanhamento": "Revisão e atualização periódica das descrições de cargos; Validação do entendimento durante as avaliações de desempenho; Monitoramento de conflitos de papel."
+    },
+    "Pouco apoio social de colegas": {
+        "definicao": "Falta de disposição diária dos parceiros de equipe para ouvir problemas, auxiliar nas tarefas pesadas ou oferecer suporte humanizado.",
+        "cids": "F32, Z60, R45",
+        "fontes": "Sobrecarga generalizada que impede a ajuda mútua; Falta de integração de novos membros; Hostilidade tolerada no ambiente social.",
+        "plano": "Equilibrar demandas para permitir cooperação; Instituir programa de integração/mentoria para recém-chegados; Promover momentos de socialização.",
+        "acompanhamento": "Mapeamento da rede de apoio interno; Pesquisas de clima (indicador de pertencimento); Acompanhamento de integração via RH."
+    },
+    "Apoio social de colegas": {
+        "definicao": "Falta de disposição diária dos parceiros de equipe para ouvir problemas, auxiliar nas tarefas pesadas ou oferecer suporte humanizado.",
+        "cids": "F32, Z60, R45",
+        "fontes": "Sobrecarga generalizada que impede a ajuda mútua; Falta de integração de novos membros; Hostilidade tolerada no ambiente social.",
+        "plano": "Equilibrar demandas para permitir cooperação; Instituir programa de integração/mentoria para recém-chegados; Promover momentos de socialização.",
+        "acompanhamento": "Mapeamento da rede de apoio interno; Pesquisas de clima (indicador de pertencimento); Acompanhamento de integração via RH."
+    },
+    "Pouco apoio social dos superiores": {
+        "definicao": "Situação na qual a liderança imediata se torna inacessível, não ouve o colaborador ativamente e falha em dar suporte instrumental para remover obstáculos.",
+        "cids": "F41, R45, Z56",
+        "fontes": "Líder focado estritamente na técnica; Inacessibilidade da chefia; Falta de reuniões de feedback e suporte instrumental para resolver problemas.",
+        "plano": "Criar rotinas obrigatórias de \"One-on-One\" (líder-liderado); Capacitar líderes no papel de removedores de obstáculos e facilitadores do trabalho.",
+        "acompanhamento": "Frequência de reuniões de alinhamento registradas; Avaliação ascendente; Medição do suporte percebido através de questionários periódicos."
+    },
+    "Apoio social de superiores": {
+        "definicao": "Situação na qual a liderança imediata se torna inacessível, não ouve o colaborador ativamente e falha em dar suporte instrumental para remover obstáculos.",
+        "cids": "F41, R45, Z56",
+        "fontes": "Líder focado estritamente na técnica; Inacessibilidade da chefia; Falta de reuniões de feedback e suporte instrumental para resolver problemas.",
+        "plano": "Criar rotinas obrigatórias de \"One-on-One\" (líder-liderado); Capacitar líderes no papel de removedores de obstáculos e facilitadores do trabalho.",
+        "acompanhamento": "Frequência de reuniões de alinhamento registradas; Avaliação ascendente; Medição do suporte percebido através de questionários periódicos."
+    },
+    "Pouco compromisso face ao local de trabalho": {
+        "definicao": "Sentimento agudo de não pertencer à comunidade corporativa da empresa, falta de orgulho institucional e problemas operacionais não assumidos como próprios.",
+        "cids": "F32, R45, Z73",
+        "fontes": "Falta de alinhamento de propósito; Sensação de ser apenas um \"número\"; Histórico de quebras de confiança entre empresa e empregados.",
+        "plano": "Integrar os trabalhadores aos resultados finais da empresa; Celebrar conquistas coletivas e tempo de casa; Aumentar a transparência administrativa.",
+        "acompanhamento": "Taxa de participação espontânea em eventos da empresa; Entrevistas de permanência (stay interviews); Acompanhamento do e-NPS."
+    },
+    "Compromisso face ao local de trabalho": {
+        "definicao": "Sentimento agudo de não pertencer à comunidade corporativa da empresa, falta de orgulho institucional e problemas operacionais não assumidos como próprios.",
+        "cids": "F32, R45, Z73",
+        "fontes": "Falta de alinhamento de propósito; Sensação de ser apenas um \"número\"; Histórico de quebras de confiança entre empresa e empregados.",
+        "plano": "Integrar os trabalhadores aos resultados finais da empresa; Celebrar conquistas coletivas e tempo de casa; Aumentar a transparência administrativa.",
+        "acompanhamento": "Taxa de participação espontânea em eventos da empresa; Entrevistas de permanência (stay interviews); Acompanhamento do e-NPS."
+    },
+    "Problemas em dormir": {
+        "definicao": "Dificuldade recorrente em adormecer, despertar várias vezes à noite e não conseguir voltar a dormir, comprovadamente gerada ou ampliada pela tensão do trabalho.",
+        "cids": "F51, G47",
+        "fontes": "Preocupação excessiva; Turnos rotativos mal planejados; Trabalho noturno contínuo sem adaptação; Cobranças corporativas em horários de repouso.",
+        "plano": "Adequar escalas baseadas na fisiologia do sono; Respeitar políticas de intervalo interjornada; Conscientizar sobre higiene do sono e desconexão digital.",
+        "acompanhamento": "Cumprimento efetivo das horas de repouso no ponto; Mapeamento de queixas de fadiga nos ASOs; Controle de acidentes e quase-acidentes."
+    },
+    "Ritmo de trabalho acelerado": {
+        "definicao": "Exigência rigorosa de execução contínua de tarefas em alta velocidade, sem respiros de recuperação, frequentemente guiada por máquinas ou sistemas de cobrança.",
+        "cids": "F41, F92, R45",
+        "fontes": "Cadência imposta por máquinas, esteiras ou algoritmos (ex: URA); Pressão constante por produtividade horária; Ausência de pausas regulamentares.",
+        "plano": "Ajustar cadência aos limites ergonômicos; Instituir pausas psicofisiológicas obrigatórias; Treinar trabalhadores para otimização de ritmo sem pressa insegura.",
+        "acompanhamento": "Análise Ergonômica do Trabalho (AET) focada no ritmo; Relatórios de produtividade vs. qualidade/erros; Controle estrito da adesão às pausas."
+    },
+    "Ritmo de trabalho": {
+        "definicao": "Exigência rigorosa de execução contínua de tarefas em alta velocidade, sem respiros de recuperação, frequentemente guiada por máquinas ou sistemas de cobrança.",
+        "cids": "F41, F92, R45",
+        "fontes": "Cadência imposta por máquinas, esteiras ou algoritmos (ex: URA); Pressão constante por produtividade horária; Ausência de pausas regulamentares.",
+        "plano": "Ajustar cadência aos limites ergonômicos; Instituir pausas psicofisiológicas obrigatórias; Treinar trabalhadores para otimização de ritmo sem pressa insegura.",
+        "acompanhamento": "Análise Ergonômica do Trabalho (AET) focada no ritmo; Relatórios de produtividade vs. qualidade/erros; Controle estrito da adesão às pausas."
+    },
+    "Sintomas depressivos": {
+        "definicao": "Sentimentos persistentes de tristeza desproporcional, perda total de interesse nas atividades ocupacionais e falta de energia atípica, impulsionados pela rotina laboral.",
+        "cids": "F32",
+        "fontes": "Exposição crônica a ambientes hostis, violência ou frustrações repetidas; Desgaste extremo sem rede de apoio; Falta de significado aliada à alta pressão.",
+        "plano": "Intervir diretamente nas causas estruturais mapeadas; Fornecer apoio psicológico corporativo acessível; Facilitar o encaminhamento e acolhimento sem estigmas.",
+        "acompanhamento": "Acompanhamento rigoroso de atestados (CIDs relacionados); Monitoramento de saúde via programas de bem-estar corporativo; Intervenção precoce do médico do trabalho."
+    },
+    "Trabalho sem significado": {
+        "definicao": "Percepção profunda de que as atividades diárias do cargo são inúteis, irrelevantes ou não entregam nenhum tipo de valor real para a empresa ou para a sociedade.",
+        "cids": "F32, Z73, R45",
+        "fontes": "Trabalho fragmentado onde o funcionário não vê o produto final; Falta de percepção de valor na tarefa; Burocracia percebida como inútil.",
+        "plano": "Enriquecimento de tarefas (agrupar rotinas para fazer sentido); Promover aproximação do setor operacional com o cliente final; Eliminar retrabalhos burocráticos (Lean).",
+        "acompanhamento": "Pesquisas qualitativas sobre o entendimento do impacto da função; Nível de satisfação com a utilidade das rotinas operacionais."
+    },
+    "Significado do trabalho": {
+        "definicao": "Percepção profunda de que as atividades diárias do cargo são inúteis, irrelevantes ou não entregam nenhum tipo de valor real para a empresa ou para a sociedade.",
+        "cids": "F32, Z73, R45",
+        "fontes": "Trabalho fragmentado onde o funcionário não vê o produto final; Falta de percepção de valor na tarefa; Burocracia percebida como inútil.",
+        "plano": "Enriquecimento de tarefas (agrupar rotinas para fazer sentido); Promover aproximação do setor operacional com o cliente final; Eliminar retrabalhos burocráticos (Lean).",
+        "acompanhamento": "Pesquisas qualitativas sobre o entendimento do impacto da função; Nível de satisfação com a utilidade das rotinas operacionais."
+    }
+}

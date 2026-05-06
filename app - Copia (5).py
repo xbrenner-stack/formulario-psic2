@@ -3,12 +3,11 @@ import pandas as pd
 import re
 import json
 import io
-import time
-import os
 from datetime import datetime, date
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, UniqueConstraint, Boolean, text
 from sqlalchemy.orm import sessionmaker, relationship, declarative_base
 import plotly.express as px
+import time
 
 # --- CONFIGURAÇÃO E CONSTANTES ---
 st.set_page_config(page_title="SST - Pesquisas", layout="wide", initial_sidebar_state="expanded")
@@ -28,12 +27,8 @@ hide_st_style = """
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
-# --- BANCO DE DADOS E URL BASE (st.secrets) ---
+# --- BANCO DE DADOS ---
 DB_URL = st.secrets["db_url"] if "db_url" in st.secrets else "sqlite:///sst_data.db"
-BASE_URL = st.secrets["base_url"] if "base_url" in st.secrets else "https://seusistema.com.br"
-if not BASE_URL.endswith("/"):
-    BASE_URL += "/"
-
 Base = declarative_base()
 
 class Empresa(Base):
@@ -41,6 +36,7 @@ class Empresa(Base):
     id = Column(Integer, primary_key=True)
     codigo_empresa = Column(String(50), unique=True, nullable=False)
     nome_empresa = Column(String(200), nullable=False)
+    senha_rh = Column(String(100), nullable=False) 
     link_forms = Column(String(500), nullable=False)
     nome_responsavel = Column(String(200), default="")
     registro_responsavel = Column(String(200), default="")
@@ -75,7 +71,6 @@ class Campanha(Base):
     nome_campanha = Column(String(200), nullable=False)
     data_inicio = Column(String(20), default=lambda: datetime.now().strftime('%d/%m/%Y'))
     status = Column(String(50), default="Ativa")
-    tipo_coleta = Column(String(50), default="cpf") 
     questionario = relationship("Questionario", back_populates="campanhas")
     empresa = relationship("Empresa")
 
@@ -83,7 +78,7 @@ class Funcionario(Base):
     __tablename__ = 'funcionarios'
     id = Column(Integer, primary_key=True)
     empresa_id = Column(Integer, ForeignKey('empresas.id'), nullable=False)
-    cpf = Column(String(50), nullable=False)
+    cpf = Column(String(20), nullable=False)
     nome = Column(String(200), nullable=False)
     data_nasc = Column(String(20), nullable=False)
     setor = Column(String(100))
@@ -119,11 +114,13 @@ engine = get_engine()
 Base.metadata.create_all(engine)
 
 with engine.connect() as conn:
-    try: conn.execute(text("ALTER TABLE empresas ADD COLUMN nome_responsavel VARCHAR(200) DEFAULT ''")); conn.commit()
+    try: 
+        conn.execute(text("ALTER TABLE empresas ADD COLUMN nome_responsavel VARCHAR(200) DEFAULT ''"))
+        conn.commit()
     except: pass
-    try: conn.execute(text("ALTER TABLE empresas ADD COLUMN registro_responsavel VARCHAR(200) DEFAULT ''")); conn.commit()
-    except: pass
-    try: conn.execute(text("ALTER TABLE campanhas ADD COLUMN tipo_coleta VARCHAR(50) DEFAULT 'cpf'")); conn.commit()
+    try: 
+        conn.execute(text("ALTER TABLE empresas ADD COLUMN registro_responsavel VARCHAR(200) DEFAULT ''"))
+        conn.commit()
     except: pass
 
 SessionLocal = sessionmaker(bind=engine)
@@ -133,333 +130,27 @@ def get_db():
 
 # --- UTILITÁRIOS ---
 def limpar_cpf(cpf):
-    if pd.isna(cpf) or str(cpf).strip() == "": return ""
+    if pd.isna(cpf) or str(cpf).strip() == "":
+        return ""
     return re.sub(r'\D', '', str(cpf))
 
 def processar_data_robusta(valor):
-    if pd.isna(valor) or str(valor).strip() == "": return ""
+    if pd.isna(valor) or str(valor).strip() == "":
+        return ""
     try:
-        if isinstance(valor, (date, datetime)): return valor.strftime('%d/%m/%Y')
+        if isinstance(valor, (date, datetime)):
+            return valor.strftime('%d/%m/%Y')
         dt = pd.to_datetime(valor, dayfirst=True, errors='coerce')
-        if pd.isna(dt): return ""
+        if pd.isna(dt):
+            return ""
         return dt.strftime('%d/%m/%Y')
     except:
         return ""
 
-# --- DICIONÁRIOS E FUNÇÕES DE CÁLCULO GLOBAIS ---
-DICT_FATORES = {
-    "Exigências quantitativas": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Reorganizar tarefas e redistribuir carga de trabalho entre a equipe."},
-    "Ritmo de trabalho acelerado": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Rever prazos e fluxos operacionais; incluir pausas programadas."},
-    "Ritmo de trabalho": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Rever prazos e fluxos operacionais; incluir pausas programadas."},
-    "Altas exigências cognitivas": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Fornecer suporte técnico, treinamentos e ferramentas que facilitem decisões."},
-    "Exigências cognitivas": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Fornecer suporte técnico, treinamentos e ferramentas que facilitem decisões."},
-    "Altas exigências emocionais": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Criar espaços de escuta ativa e oferecer suporte psicológico contínuo."},
-    "Exigências emocionais": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Criar espaços de escuta ativa e oferecer suporte psicológico contínuo."},
-    "Pouca influência no trabalho": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Ampliar a participação dos colaboradores em decisões sobre suas atividades."},
-    "Influência no trabalho": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Ampliar a participação dos colaboradores em decisões sobre suas atividades."},
-    "Baixa possibilidades de desenvolvimento": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Estabelecer plano de carreira e treinamentos periódicos."},
-    "Possibilidades de desenvolvimento": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Estabelecer plano de carreira e treinamentos periódicos."},
-    "Pouca previsibilidade de rotina": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Garantir maior clareza na agenda de tarefas e planejamento de demandas."},
-    "Previsibilidade": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Garantir maior clareza na agenda de tarefas e planejamento de demandas."},
-    "Pouca transparência do papel laboral desempenhado": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Atualizar e comunicar com clareza as descrições de cargos e responsabilidades."},
-    "Transparência do papel laboral desempenhado": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Atualizar e comunicar com clareza as descrições de cargos e responsabilidades."},
-    "Déficit nas recompensas": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Implementar sistema de reconhecimento por desempenho (não apenas financeiro)."},
-    "Recompensas": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Implementar sistema de reconhecimento por desempenho (não apenas financeiro)."},
-    "Conflitos laborais": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Criar um comitê de mediação de conflitos e promover treinamentos em comunicação."},
-    "Pouco apoio social de colegas": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Promover integração por meio de dinâmicas de grupo e projetos colaborativos."},
-    "Apoio social de colegas": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Promover integração por meio de dinâmicas de grupo e projetos colaborativos."},
-    "Pouco apoio social dos superiores": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Capacitar líderes em gestão humanizada e empática."},
-    "Apoio social de superiores": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Capacitar líderes em gestão humanizada e empática."},
-    "Pouca cooperação no trabalho": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Estimular o trabalho em equipe com metas compartilhadas."},
-    "Comunidade social no trabalho": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Estimular o trabalho em equipe com metas compartilhadas."},
-    "Má qualidade da liderança": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Realizar avaliação dos líderes com feedback 360° e programa de desenvolvimento de líderes."},
-    "Qualidade de liderança": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Realizar avaliação dos líderes com feedback 360° e programa de desenvolvimento de líderes."},
-    "Baixa confiança entre pares": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Estimular valores como ética e respeito; aplicar códigos de conduta."},
-    "Confiança horizontal": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Estimular valores como ética e respeito; aplicar códigos de conduta."},
-    "Baixa confiança na gerência": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Aumentar a transparência das decisões da gestão e comunicar-se melhor com a equipe."},
-    "Confiança vertical": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Aumentar a transparência das decisões da gestão e comunicar-se melhor com a equipe."},
-    "Injustiça e desrespeito": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Criar políticas organizacionais claras de justiça e respeito no ambiente de trabalho."},
-    "Justiça e respeito": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Criar políticas organizacionais claras de justiça e respeito no ambiente de trabalho."},
-    "Baixa autoeficácia": {"macro": "P", "macro_nome": "PERSONALIDADE - P", "acao": "Oferecer feedbacks positivos e oportunidades de desenvolvimento individual."},
-    "Auto-eficácia": {"macro": "P", "macro_nome": "PERSONALIDADE - P", "acao": "Oferecer feedbacks positivos e oportunidades de desenvolvimento individual."},
-    "Trabalho sem significado": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Realinhar as tarefas ao propósito organizacional e envolver os colaboradores na missão."},
-    "Significado do trabalho": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Realinhar as tarefas ao propósito organizacional e envolver os colaboradores na missão."},
-    "Pouco compromisso face ao local de trabalho": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Fortalecer o vínculo organizacional com ações de valorização e pertencimento."},
-    "Compromisso face ao local de trabalho": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Fortalecer o vínculo organizacional com ações de valorização e pertencimento."},
-    "Insatisfação no trabalho": {"macro": "ITI", "macro_nome": "INTERFACE TRABALHO-INDIVÍDUO - ITI", "acao": "Aplicar pesquisas de clima e agir sobre os pontos críticos com agilidade."},
-    "Satisfação no trabalho": {"macro": "ITI", "macro_nome": "INTERFACE TRABALHO-INDIVÍDUO - ITI", "acao": "Aplicar pesquisas de clima e agir sobre os pontos críticos com agilidade."},
-    "Insegurança laboral": {"macro": "ITI", "macro_nome": "INTERFACE TRABALHO-INDIVÍDUO - ITI", "acao": "Garantir estabilidade por meio de contratos claros e comunicação sobre o futuro."},
-    "Falta de saúde geral": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Criar programas de saúde física, mental e preventiva com incentivos à adesão."},
-    "Saúde Geral": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Criar programas de saúde física, mental e preventiva com incentivos à adesão."},
-    "Conflito trabalho/ família": {"macro": "ITI", "macro_nome": "INTERFACE TRABALHO-INDIVÍDUO - ITI", "acao": "Adotar políticas de flexibilidade, como horários adaptáveis ou home office parcial."},
-    "Conflito trabalho/família": {"macro": "ITI", "macro_nome": "INTERFACE TRABALHO-INDIVÍDUO - ITI", "acao": "Adotar políticas de flexibilidade, como horários adaptáveis ou home office parcial."},
-    "Problemas em dormir": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Promover campanhas de higiene do sono e equilíbrio jornada/descanso."},
-    "Burnout": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Reduzir carga de trabalho, flexibilizar horários e investir em suporte emocional."},
-    "Estresse": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Implantar programas de gestão do estresse, estratégias de copyng, inteligência emocional (mindfulness, ginástica laboral)."},
-    "Stress": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Implantar programas de gestão do estresse, estratégias de copyng, inteligência emocional (mindfulness, ginástica laboral)."},
-    "Sintomas depressivos": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Disponibilizar atendimento psicológico e acompanhar com RH e SESMT."},
-    "Comportamentos ofensivos": {"macro": "CO", "macro_nome": "COMPORTAMENTOS OFENSIVOS - CO", "acao": "Criar canais de denúncia seguros e implementar políticas de tolerância zero para assédio."}
-}
-
-OBS_MACRO = {
-    "EXIGÊNCIAS LABORAIS - EL": {
-        "FAVORÁVEL": "Carga de trabalho adequada e ritmo equilibrado.",
-        "MODERADO": "Carga de trabalho no limite; necessário monitorar e balancear.",
-        "RISCO": "Sobrecarga de trabalho identificada, necessidade de revisão imediata."
-    },
-    "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC": {
-        "FAVORÁVEL": "Boa autonomia e uso de habilidades no trabalho.",
-        "MODERADO": "Autonomia parcial; oportunidades para maior engajamento.",
-        "RISCO": "Pouco controle sobre tarefas e decisões; desmotivação latente."
-    },
-    "RELAÇÕES SOCIAIS E LIDERANÇA - RSL": {
-        "FAVORÁVEL": "Boa comunicação, papéis claros e suporte da liderança.",
-        "MODERADO": "Algumas falhas de comunicação e clareza de papéis.",
-        "RISCO": "Conflitos interpessoais ou lacunas significativas na liderança."
-    },
-    "INTERFACE TRABALHO-INDIVÍDUO - ITI": {
-        "FAVORÁVEL": "Bom equilíbrio entre vida pessoal e profissional.",
-        "MODERADO": "Algumas interferências entre trabalho e vida pessoal.",
-        "RISCO": "Forte desequilíbrio, trabalho afetando negativamente a vida pessoal."
-    },
-    "VALORES NO LOCAL DE TRABALHO - VLT": {
-        "FAVORÁVEL": "Ambiente de respeito, ética e confiança.",
-        "MODERADO": "Confiabilidade razoável, com pequenas tensões percebidas.",
-        "RISCO": "Falta de confiança, desrespeito ou percepção de injustiça."
-    },
-    "PERSONALIDADE - P": {
-        "FAVORÁVEL": "Alta autoeficácia e perspectivas positivas.",
-        "MODERADO": "Autoeficácia moderada; espaço para fortalecimento individual.",
-        "RISCO": "Baixa autoeficácia e insegurança; necessidade de suporte."
-    },
-    "SAÚDE E BEM-ESTAR - SBE": {
-        "FAVORÁVEL": "Bem-estar físico e emocional preservados; sono adequado.",
-        "MODERADO": "Sinais leves de fadiga, estresse ou sono irregular.",
-        "RISCO": "Presença de exaustão, estresse alto ou sintomas de adoecimento."
-    },
-    "COMPORTAMENTOS OFENSIVOS - CO": {
-        "FAVORÁVEL": "Ambiente respeitoso, sem relatos de ofensas.",
-        "MODERADO": "Ocorrências pontuais de desrespeito ou conflitos.",
-        "RISCO": "Relatos críticos de assédio ou violência; tolerância zero."
-    }
-}
-
-def classificar_risco_novo(v):
-    if pd.isna(v): return 'N/A', 'Monitorar'
-    if v <= 49.99: return 'FAVORÁVEL', 'Monitorar'
-    if v <= 74.99: return 'MODERADO', 'Planejar ações corretivas'
-    return 'RISCO', 'Intervenção imediata'
-
-def classificar_risco_exec(v):
-    if v <= 49.99: return 'BAIXO', '#22c55e'
-    if v <= 74.99: return 'MODERADO', '#eab308'
-    return 'ALTO', '#ef4444'
-
-def build_html_table(df, headers, widths):
-    html = "<table style='width: 100%; border-collapse: collapse; margin-bottom: 10px; color: black; font-size: 9px; page-break-inside: avoid;'>"
-    html += "<thead style='display: table-header-group;'><tr style='background-color: #1560bd; color: white;'>"
-    for i, h in enumerate(headers):
-        align = "center" if h in ['RESULTADO', 'MÉDIA', 'CLASSIFIC', 'CLASSIFICAÇÃO'] else "left"
-        html += f"<th style='padding: 4px; border: 1px solid #ddd; width: {widths[i]}; text-align: {align};'>{h}</th>"
-    html += "</tr></thead><tbody>"
-    for _, row in df.iterrows():
-        html += "<tr>"
-        for i, col in enumerate(df.columns):
-            val = row[col]
-            if col in ['RESULTADO', 'MÉDIA']: val = f"{val:.1f}%"
-            
-            align = "center" if headers[i] in ['RESULTADO', 'MÉDIA', 'CLASSIFIC', 'CLASSIFICAÇÃO'] else "left"
-            style = f"padding: 4px; border: 1px solid #ddd; text-align: {align};"
-            
-            if col in ['CLASSIFIC', 'CLASSIFICAÇÃO']:
-                if val == 'FAVORÁVEL': style += " color: #16a34a; font-weight: bold;"
-                elif val == 'MODERADO': style += " color: #ca8a04; font-weight: bold;"
-                elif val == 'RISCO': style += " color: #dc2626; font-weight: bold;"
-            html += f"<td style='{style}'>{val}</td>"
-        html += "</tr>"
-    html += "</tbody></table>"
-    return html
-
-def calcular_zenit(score_exigencia, score_org, score_lideranca, severidade_str):
-    def converter_peso(v):
-        if v <= 33.33: return 1
-        if v <= 49.99: return 3
-        if v <= 66.66: return 5
-        if v <= 83.33: return 7
-        return 9
-        
-    peso_et = converter_peso(score_exigencia)
-    peso_re = converter_peso(score_org)
-    peso_me = converter_peso(score_lideranca)
-    peso_pe = 1 
-    
-    pr_val = peso_et * peso_re * peso_me * peso_pe
-    
-    prob_str = "Alta"
-    if pr_val <= 24: prob_str = "Rara"
-    elif pr_val <= 104: prob_str = "Baixa"
-    elif pr_val <= 242: prob_str = "Média"
-    
-    # Matriz oficial com 4 Níveis (Retornada à regra original do Zenit)
-    matriz_risco = {
-        "Alta": {"Leve": "Risco Elevado", "Média": "Risco Elevado", "Grave": "Risco Extremo", "Gravíssima": "Risco Extremo"},
-        "Média": {"Leve": "Risco Moderado", "Média": "Risco Moderado", "Grave": "Risco Extremo", "Gravíssima": "Risco Extremo"},
-        "Baixa": {"Leve": "Risco Baixo", "Média": "Risco Baixo", "Grave": "Risco Elevado", "Gravíssima": "Risco Extremo"},
-        "Rara": {"Leve": "Risco Baixo", "Média": "Risco Baixo", "Grave": "Risco Moderado", "Gravíssima": "Risco Elevado"}
-    }
-    
-    risco_final = matriz_risco.get(prob_str, {}).get(severidade_str, "Risco Indefinido")
-    
-    # Textos de Aceitabilidade idênticos aos dropdowns do Zenit
-    acoes = {
-        "Risco Extremo": {"criterio": "Inaceitável", "decisao": "Controlar", "aceitabilidade": "Eliminar"},
-        "Risco Elevado": {"criterio": "Inaceitável", "decisao": "Controlar", "aceitabilidade": "Reduzir"},
-        "Risco Moderado": {"criterio": "Incerto", "decisao": "Reavaliar / Informação Adicional", "aceitabilidade": "Reduzir ao nível mais baixo possível"},
-        "Risco Baixo": {"criterio": "Aceitável", "decisao": "Manter o Nível", "aceitabilidade": "Manter o nível do risco"}
-    }
-    acao_sugerida = acoes.get(risco_final, {})
-    
-    return {
-        "pesos": {"ET": peso_et, "RE": peso_re, "ME": peso_me},
-        "PR": pr_val,
-        "prob_calc": prob_str,
-        "risco": risco_final,
-        "acao": acao_sugerida
-    }
-
-# --- COMPONENTES DE UI: FLUXO ANÔNIMO ---
-def renderizar_questionario_anonimo(empresa, campanha):
-    if st.session_state.get('anon_concluido'):
-        st.success("Você já concluiu seu preenchimento. Obrigado!")
-        st.balloons()
-        return
-
-    if 'tentou_enviar' not in st.session_state: 
-        st.session_state.tentou_enviar = False
-
-    st.title(f"📋 {campanha.questionario.nome}")
-    st.info("🔒 **Modo Seguro e Anônimo:** Esta pesquisa não coleta nenhum dado de identificação (como CPF ou Nome).")
-    
-    if campanha.questionario.descricao:
-        st.write(campanha.questionario.descricao)
-
-    db = get_db()
-    setores_db = [s[0] for s in db.query(Funcionario.setor).filter_by(empresa_id=empresa.id).distinct().all() if s[0] and str(s[0]).strip()]
-    setores = sorted(setores_db) if setores_db else ["Não Informado"]
-
-    st.markdown("### Passo 1: Informações do seu Setor")
-    c1, c2 = st.columns(2)
-    sel_setor = c1.selectbox("Selecione seu Setor", options=setores, index=None)
-    
-    if sel_setor:
-        funcoes_db = [f[0] for f in db.query(Funcionario.funcao).filter_by(empresa_id=empresa.id, setor=sel_setor).distinct().all() if f[0] and str(f[0]).strip()]
-        funcoes = sorted(funcoes_db) if funcoes_db else ["Não Informado"]
-        sel_funcao = c2.selectbox("Selecione sua Função", options=funcoes, index=None)
-    else:
-        c2.selectbox("Selecione sua Função", options=["Selecione um Setor primeiro"], disabled=True)
-        sel_funcao = None
-
-    st.divider()
-
-    st.markdown("### Passo 2: Questionário")
-    perguntas = db.query(Pergunta).filter(Pergunta.questionario_id == campanha.questionario_id).order_by(Pergunta.ordem.asc(), Pergunta.id.asc()).all()
-    
-    if not perguntas:
-        st.warning("Este questionário ainda não possui perguntas cadastradas.")
-        return
-
-    respostas_usuario = {}
-    
-    for p in perguntas:
-        key_p = f"q_{p.id}_{campanha.id}"
-        val_atual = st.session_state.get(key_p)
-        esta_vazio = val_atual is None or str(val_atual).strip() == ""
-
-        with st.container(border=True):
-            if st.session_state.tentou_enviar and esta_vazio: st.error("⚠️ Esta pergunta é obrigatória.")
-
-            st.markdown(f"**{p.ordem}. {p.enunciado}**")
-            if p.texto_ajuda: st.caption(f"💡 Ajuda: {p.texto_ajuda}")
-            
-            if p.tipo_pergunta == "texto":
-                respostas_usuario[p.id] = st.text_area(f"Resposta para {p.id}", key=key_p, label_visibility="collapsed")
-            else:
-                try: opcoes = json.loads(p.opcoes_json)
-                except: opcoes = {"1": "Erro na carga das opções"}
-                opcoes_keys = sorted([int(k) for k in opcoes.keys()])
-                
-                if p.tipo_pergunta == "lista":
-                    respostas_usuario[p.id] = st.selectbox(f"Resposta para {p.id}", options=opcoes_keys, index=None, format_func=lambda x: f"{x} - {opcoes.get(str(x), '')}", key=key_p, label_visibility="collapsed")
-                else: 
-                    respostas_usuario[p.id] = st.radio(f"Resposta para {p.id}", options=opcoes_keys, index=None, format_func=lambda x: f"{x} - {opcoes.get(str(x), '')}", horizontal=False, key=key_p, label_visibility="collapsed")
-
-    st.divider()
-    aceite_tcle = st.checkbox("Declaro que fui informado sobre os objetivos desta pesquisa de saúde ocupacional. Compreendo que os dados são coletados para o cumprimento de obrigação legal da empresa (elaboração do PGR conforme NR-01). Estou ciente de que as minhas respostas individuais são protegidas por sigilo técnico e processadas em bloco estatístico, garantindo meu anonimato. Autorizo o processamento seguro destas informações.")
-
-    with st.expander("📄 Ler Política de Privacidade e Proteção de Dados (LGPD)"):
-        st.markdown("""
-        **POLÍTICA DE PRIVACIDADE E TRATAMENTO DE DADOS**
-        
-        **1. Agentes de Tratamento:** A sua empregadora atua como **Controladora** dos dados. A consultoria de Segurança e Saúde no Trabalho (SST) atua como **Operadora**, processando as informações sob estrito sigilo técnico.
-        
-        **2. Finalidade e Base Legal:** A coleta destes dados tem como finalidade exclusiva o diagnóstico de riscos psicossociais para a elaboração do Programa de Gerenciamento de Riscos (PGR), obrigação legal imposta pelo Ministério do Trabalho através da Norma Regulamentadora nº 01 (NR-01). A base legal para este processamento é o **Artigo 7º, inciso II da LGPD** (cumprimento de obrigação legal ou regulatória pelo controlador).
-        
-        **3. Sigilo e Anonimização:** Suas respostas individuais não serão compartilhadas, sob nenhuma hipótese, com seus gestores, líderes ou setor de Recursos Humanos. O sistema agrupa todas as respostas matematicamente, transformando-as em dados estatísticos. A empresa receberá apenas o resultado global e os percentuais de risco por setor, sendo impossível rastrear a autoria de qualquer resposta.
-        
-        **4. Retenção e Descarte:** Por se tratar de um documento legal de segurança do trabalho, os laudos consolidados devem ser guardados pela empresa conforme os prazos legais da NR-01. Identificadores sistêmicos de sessão são protegidos em banco de dados isolado e anonimizados.
-        
-        **5. Seus Direitos:** Você tem o direito à transparência sobre o uso de seus dados. Contudo, devido à base legal de obrigação regulatória (Art. 16 da LGPD), não será possível solicitar a exclusão individual de suas respostas após o envio, visto que estas passarão a compor irrevogavelmente a massa estatística de saúde ocupacional da empresa.
-        """)
-
-    erros_atuais = []
-    if not sel_setor or not sel_funcao:
-        erros_atuais.append("Por favor, selecione seu Setor e sua Função no Passo 1.")
-    if not aceite_tcle:
-        erros_atuais.append("Você deve aceitar o Termo de Consentimento da LGPD para enviar suas respostas.")
-    if any(v is None or str(v).strip() == "" for v in respostas_usuario.values()):
-        erros_atuais.append("Por favor, responda a todas as perguntas do questionário.")
-
-    if st.session_state.get('tentou_enviar') and erros_atuais:
-        for erro in erros_atuais:
-            st.error(f"⚠️ {erro}")
-
-    if st.button("🚀 ENVIAR RESPOSTAS ANÔNIMAS", use_container_width=True, type="primary"):
-        st.session_state.tentou_enviar = True
-        
-        if erros_atuais:
-            st.rerun()
-        else:
-            try:
-                cpf_fake = f"LNK_{int(time.time()*1000)}"
-                func_anonimo = Funcionario(
-                    empresa_id=empresa.id, cpf=cpf_fake, nome=f"Respondente Anônimo",
-                    data_nasc="01/01/1900", setor=sel_setor, funcao=sel_funcao,
-                    status="Concluído", ativo=True
-                )
-                db.add(func_anonimo); db.flush() 
-                
-                nova_sessao = SurveySession(funcionario_id=func_anonimo.id, campanha_id=campanha.id)
-                db.add(nova_sessao); db.flush() 
-                
-                for p_id, valor in respostas_usuario.items():
-                    db.add(Answer(session_id=nova_sessao.id, pergunta_id=p_id, resposta_texto=str(valor)))
-                
-                db.commit()
-                st.success("Questionário anônimo enviado com sucesso!")
-                st.balloons()
-                st.session_state.tentou_enviar = False
-                st.session_state.anon_concluido = True
-                st.rerun()
-            except Exception as e:
-                db.rollback()
-                st.error(f"Erro ao salvar: {e}")
-            finally:
-                db.close()
-
-# --- COMPONENTES DE UI: FLUXO COM CPF ---
+# --- COMPONENTES DE UI ---
 def login_colaborador(empresa):
     st.title(f"Acesso: {empresa.nome_empresa}")
-    st.info("Valide seus dados para acessar o formulário restrito.")
+    st.info("Valide seus dados para acessar o formulário.")
     
     with st.form("login_worker"):
         cpf_input = st.text_input("CPF (apenas números)")
@@ -521,70 +212,81 @@ def renderizar_questionario_dinamico(user, campanha):
                 st.caption(f"💡 Ajuda: {p.texto_ajuda}")
             
             if p.tipo_pergunta == "texto":
-                respostas_usuario[p.id] = st.text_area(f"Resposta para {p.id}", key=key_p, label_visibility="collapsed")
+                respostas_usuario[p.id] = st.text_area(
+                    f"Resposta para {p.id}", 
+                    key=key_p, 
+                    label_visibility="collapsed",
+                    placeholder="Digite sua resposta aqui..."
+                )
             else:
                 try: opcoes = json.loads(p.opcoes_json)
                 except: opcoes = {"1": "Erro na carga das opções"}
+                
                 opcoes_keys = sorted([int(k) for k in opcoes.keys()])
                 
                 if p.tipo_pergunta == "lista":
-                    respostas_usuario[p.id] = st.selectbox(f"Resposta para {p.id}", options=opcoes_keys, index=None, format_func=lambda x: f"{x} - {opcoes.get(str(x), '')}", key=key_p, label_visibility="collapsed")
+                    respostas_usuario[p.id] = st.selectbox(
+                        f"Resposta para {p.id}",
+                        options=opcoes_keys,
+                        index=None,
+                        format_func=lambda x: f"{x} - {opcoes.get(str(x), '')}",
+                        key=key_p,
+                        label_visibility="collapsed"
+                    )
                 else: 
-                    respostas_usuario[p.id] = st.radio(f"Resposta para {p.id}", options=opcoes_keys, index=None, format_func=lambda x: f"{x} - {opcoes.get(str(x), '')}", horizontal=False, key=key_p, label_visibility="collapsed")
+                    respostas_usuario[p.id] = st.radio(
+                        f"Resposta para {p.id}",
+                        options=opcoes_keys,
+                        index=None,
+                        format_func=lambda x: f"{x} - {opcoes.get(str(x), '')}",
+                        horizontal=False,
+                        key=key_p,
+                        label_visibility="collapsed"
+                    )
 
     st.divider()
-    aceite_tcle = st.checkbox("Declaro que fui informado sobre os objetivos desta pesquisa de saúde ocupacional. Compreendo que os dados são coletados para o cumprimento de obrigação legal da empresa (elaboração do PGR conforme NR-01). Estou ciente de que as minhas respostas individuais são protegidas por sigilo técnico e processadas em bloco, e que, por se tratar de um documento legal de segurança do trabalho, os dados não poderão ser excluídos individualmente após a submissão. Autorizo o processamento seguro das informações.")
-
-    with st.expander("📄 Ler Política de Privacidade e Proteção de Dados (LGPD)"):
-        st.markdown("""
-        **POLÍTICA DE PRIVACIDADE E TRATAMENTO DE DADOS**
-        
-        **1. Agentes de Tratamento:** A sua empregadora atua como **Controladora** dos dados. A consultoria de Segurança e Saúde no Trabalho (SST) atua como **Operadora**, processando as informações sob estrito sigilo técnico.
-        
-        **2. Finalidade e Base Legal:** A coleta destes dados tem como finalidade exclusiva o diagnóstico de riscos psicossociais para a elaboração do Programa de Gerenciamento de Riscos (PGR), obrigação legal imposta pelo Ministério do Trabalho através da Norma Regulamentadora nº 01 (NR-01). A base legal para este processamento é o **Artigo 7º, inciso II da LGPD** (cumprimento de obrigação legal ou regulatória pelo controlador).
-        
-        **3. Sigilo e Anonimização:** Suas respostas individuais não serão compartilhadas, sob nenhuma hipótese, com seus gestores, líderes ou setor de Recursos Humanos. O sistema agrupa todas as respostas matematicamente, transformando-as em dados estatísticos. A empresa receberá apenas o resultado global e os percentuais de risco por setor, sendo impossível rastrear a autoria de qualquer resposta.
-        
-        **4. Retenção e Descarte:** Por se tratar de um documento legal de segurança do trabalho, os laudos consolidados devem ser guardados pela empresa conforme os prazos legais da NR-01. Identificadores sistêmicos de sessão são protegidos em banco de dados isolado e anonimizados.
-        
-        **5. Seus Direitos:** Você tem o direito à transparência sobre o uso de seus dados. Contudo, devido à base legal de obrigação regulatória (Art. 16 da LGPD), não será possível solicitar a exclusão individual de suas respostas após o envio, visto que estas passarão a compor irrevogavelmente a massa estatística de saúde ocupacional da empresa.
-        """)
-
-    erros_atuais = []
-    if not aceite_tcle:
-        erros_atuais.append("Você deve aceitar o Termo de Consentimento da LGPD para enviar suas respostas.")
-    if any(v is None or str(v).strip() == "" for v in respostas_usuario.values()):
-        erros_atuais.append("Por favor, responda a todas as perguntas do questionário.")
-
-    if st.session_state.get('tentou_enviar') and erros_atuais:
-        for erro in erros_atuais:
-            st.error(f"⚠️ {erro}")
-
     if st.button("🚀 ENVIAR RESPOSTAS", use_container_width=True, type="primary"):
         st.session_state.tentou_enviar = True
-        
-        if erros_atuais:
+        if any(v is None or str(v).strip() == "" for v in respostas_usuario.values()):
+            st.error("Por favor, responda a todas as perguntas destacadas em vermelho.")
             st.rerun()
-        else:
-            try:
-                nova_sessao = SurveySession(funcionario_id=user.id, campanha_id=campanha.id)
-                db.add(nova_sessao); db.flush() 
-                for p_id, valor in respostas_usuario.items():
-                    db.add(Answer(session_id=nova_sessao.id, pergunta_id=p_id, resposta_texto=str(valor)))
-                
-                db_user = db.query(Funcionario).filter(Funcionario.id == user.id).first()
-                db_user.status = "Concluído"
-                db.commit()
-                st.success("Questionário enviado com sucesso!")
-                st.balloons()
-                st.session_state.tentou_enviar = False
-                st.session_state.pop('logged_user_id', None)
-                st.rerun()
-            except Exception as e:
-                db.rollback()
-                st.error(f"Erro ao salvar: {e}")
-            finally:
-                db.close()
+            return
+            
+        try:
+            nova_sessao = SurveySession(funcionario_id=user.id, campanha_id=campanha.id)
+            db.add(nova_sessao)
+            db.flush() 
+            
+            for p_id, valor in respostas_usuario.items():
+                db.add(Answer(session_id=nova_sessao.id, pergunta_id=p_id, resposta_texto=str(valor)))
+            
+            db_user = db.query(Funcionario).filter(Funcionario.id == user.id).first()
+            db_user.status = "Concluído"
+            
+            db.commit()
+            st.success("Questionário enviado com sucesso!")
+            st.balloons()
+            st.session_state.tentou_enviar = False
+            st.session_state.pop('logged_user_id', None)
+            st.rerun()
+        except Exception as e:
+            db.rollback()
+            st.error(f"Erro ao salvar: {e}")
+        finally:
+            db.close()
+
+def portal_colaborador(empresa, user):
+    db = get_db()
+    campanha_ativa = db.query(Campanha).filter(
+        Campanha.empresa_id == empresa.id,
+        Campanha.status == "Ativa"
+    ).first()
+    
+    if not campanha_ativa:
+        st.title(f"Olá, {user.nome}")
+        st.info("Não há nenhuma campanha de pesquisa ativa para sua empresa no momento.")
+        return
+    renderizar_questionario_dinamico(user, campanha_ativa)
 
 # --- ÁREA ADMINISTRATIVA ---
 def admin_portal():
@@ -654,19 +356,20 @@ def admin_portal():
                     codigo = c1.text_input("Código URL (ex: empresa-teste)")
                     nome = c2.text_input("Nome da Empresa")
                     c3, c4 = st.columns(2)
-                    resp_nome = c3.text_input("Responsável Técnico", help="Nome que sairá na assinatura. Ex: João da Silva")
+                    resp_nome = c3.text_input("Responsável Técnico", help="Nome que sairá na assinatura. Ex: Abel Luiz de Oliveira")
                     resp_reg = c4.text_input("Registro Profissional", help="Ex: CRM/MG 10.419")
                     link = st.text_input("Link do Google Forms")
+                    senha = st.text_input("Senha do RH", type="password")
                     
                     if st.form_submit_button("Salvar Empresa"):
                         if db.query(Empresa).filter_by(codigo_empresa=codigo).first(): st.error("Código já existe!")
                         else:
-                            db.add(Empresa(codigo_empresa=codigo, nome_empresa=nome, link_forms=link, nome_responsavel=resp_nome, registro_responsavel=resp_reg))
+                            db.add(Empresa(codigo_empresa=codigo, nome_empresa=nome, link_forms=link, senha_rh=senha, nome_responsavel=resp_nome, registro_responsavel=resp_reg))
                             db.commit(); st.success("Empresa cadastrada!"); st.rerun()
 
             empresas = db.query(Empresa).order_by(Empresa.nome_empresa.asc()).all()
-            df_emp = pd.DataFrame([{'id': e.id, 'Nome': e.nome_empresa, 'Código': e.codigo_empresa, 'Link': e.link_forms, 'Responsável': e.nome_responsavel, 'Registro': e.registro_responsavel} for e in empresas])
-            if df_emp.empty: df_emp = pd.DataFrame(columns=['id', 'Nome', 'Código', 'Link', 'Responsável', 'Registro'])
+            df_emp = pd.DataFrame([{'id': e.id, 'Nome': e.nome_empresa, 'Código': e.codigo_empresa, 'Senha RH': e.senha_rh, 'Link': e.link_forms, 'Responsável': e.nome_responsavel, 'Registro': e.registro_responsavel} for e in empresas])
+            if df_emp.empty: df_emp = pd.DataFrame(columns=['id', 'Nome', 'Código', 'Senha RH', 'Link', 'Responsável', 'Registro'])
             else: df_emp = df_emp.sort_values(by='Nome', ignore_index=True)
 
             ed_emp = st.data_editor(df_emp, key="ed_emp", num_rows="dynamic", use_container_width=True, disabled=["id"], column_config={"id": None})
@@ -679,11 +382,11 @@ def admin_portal():
                     if pd.notna(row.get('id')):
                         e_db = db.query(Empresa).get(int(row['id']))
                         if e_db:
-                            e_db.nome_empresa, e_db.codigo_empresa, e_db.link_forms = str(row['Nome']), str(row['Código']), str(row['Link'])
+                            e_db.nome_empresa, e_db.codigo_empresa, e_db.senha_rh, e_db.link_forms = str(row['Nome']), str(row['Código']), str(row['Senha RH']), str(row['Link'])
                             e_db.nome_responsavel = str(row.get('Responsável', ''))
                             e_db.registro_responsavel = str(row.get('Registro', ''))
                     elif pd.notna(row.get('Nome')):
-                        db.add(Empresa(nome_empresa=str(row['Nome']), codigo_empresa=str(row['Código']), link_forms=str(row['Link']), nome_responsavel=str(row.get('Responsável', '')), registro_responsavel=str(row.get('Registro', ''))))
+                        db.add(Empresa(nome_empresa=str(row['Nome']), codigo_empresa=str(row['Código']), senha_rh=str(row['Senha RH']), link_forms=str(row['Link']), nome_responsavel=str(row.get('Responsável', '')), registro_responsavel=str(row.get('Registro', ''))))
                 db.commit(); st.success("Empresas atualizadas!"); st.rerun()
 
         elif menu == "Bancos de Questionários":
@@ -714,8 +417,16 @@ def admin_portal():
                         
                         ed_p = st.data_editor(
                             df_p.sort_values(by=['Ordem', 'id'], ignore_index=True) if not df_p.empty else df_p, 
-                            key=f"ed_p_{q.id}", num_rows="dynamic", use_container_width=True, disabled=["id"], 
-                            column_config={"id": None, "Ordem": st.column_config.NumberColumn(step=1), "Inverter": st.column_config.CheckboxColumn("Inverter Score?"), "Tipo": st.column_config.SelectboxColumn(options=["escala", "lista", "texto"])}
+                            key=f"ed_p_{q.id}", 
+                            num_rows="dynamic", 
+                            use_container_width=True, 
+                            disabled=["id"], 
+                            column_config={
+                                "id": None, 
+                                "Ordem": st.column_config.NumberColumn(step=1), 
+                                "Inverter": st.column_config.CheckboxColumn("Inverter Score?"),
+                                "Tipo": st.column_config.SelectboxColumn(options=["escala", "lista", "texto"])
+                            }
                         )
                         
                         if st.button("💾 Salvar Perguntas", key=f"sv_p_{q.id}"):
@@ -728,7 +439,13 @@ def admin_portal():
                                 if pd.notna(r.get('id')):
                                     p_db = db.query(Pergunta).get(int(r['id']))
                                     if p_db: 
-                                        p_db.ordem, p_db.enunciado, p_db.texto_ajuda, p_db.dimensao, p_db.inverter_pontuacao, p_db.tipo_pergunta, p_db.opcoes_json = int(r.get('Ordem', 0)), str(r['Enunciado']), str(r.get('Ajuda', '')), str(r.get('Dimensão', '')), inv_val, str(r.get('Tipo', 'escala')), str(r.get('Opções', '{}'))
+                                        p_db.ordem = int(r.get('Ordem', 0))
+                                        p_db.enunciado = str(r['Enunciado'])
+                                        p_db.texto_ajuda = str(r.get('Ajuda', ''))
+                                        p_db.dimensao = str(r.get('Dimensão', ''))
+                                        p_db.inverter_pontuacao = inv_val
+                                        p_db.tipo_pergunta = str(r.get('Tipo', 'escala'))
+                                        p_db.opcoes_json = str(r.get('Opções', '{}'))
                                 elif pd.notna(r.get('Enunciado')):
                                     db.add(Pergunta(questionario_id=q.id, ordem=int(r.get('Ordem', 0)), enunciado=str(r['Enunciado']), texto_ajuda=str(r.get('Ajuda', '')), dimensao=str(r.get('Dimensão', '')), inverter_pontuacao=inv_val, tipo_pergunta=str(r.get('Tipo', 'escala')), opcoes_json=str(r.get('Opções', '{"1":"Nunca","2":"Sempre"}'))))
                             db.commit(); st.success("Salvo!"); st.rerun()
@@ -796,15 +513,11 @@ def admin_portal():
             with st.expander("🚀 Iniciar Nova Campanha"):
                 with st.form("nc"):
                     qs = {q.nome: q.id for q in db.query(Questionario).all()}
-                    sel_q = st.selectbox("Questionário Base", list(qs.keys()))
+                    sel_q = st.selectbox("Questionário", list(qs.keys()))
                     n_c = st.text_input("Nome da Campanha")
-                    tipo_c = st.radio("Modo de Coleta da Pesquisa", ["Tradicional (Exige Validação de CPF e Nasc.)", "Link Aberto (100% Anônimo via Dropdown)"])
-                    
-                    if st.form_submit_button("Iniciar Campanha"):
-                        db.query(Campanha).filter_by(empresa_id=emp_id, status="Ativa").update({"status": "Encerrada"})
-                        t_val = "cpf" if "Tradicional" in tipo_c else "anonimo"
-                        db.add(Campanha(empresa_id=emp_id, questionario_id=qs[sel_q], nome_campanha=n_c, tipo_coleta=t_val))
-                        db.commit(); st.success("Campanha Iniciada!"); st.rerun()
+                    if st.form_submit_button("Iniciar"):
+                        db.add(Campanha(empresa_id=emp_id, questionario_id=qs[sel_q], nome_campanha=n_c))
+                        db.commit(); st.success("Iniciada!"); st.rerun()
 
             camps = db.query(Campanha).filter_by(empresa_id=emp_id).all()
             if not camps: st.info("Nenhuma campanha ativa.")
@@ -813,15 +526,6 @@ def admin_portal():
                 sel_c_id = st.selectbox("Selecione a Campanha para Analisar", list(c_dict.keys()), key="sel_camp_ana")
                 sel_c_id = c_dict[sel_c_id]
                 c_obj = db.query(Campanha).get(sel_c_id)
-
-                # CARREGANDO O DICIONÁRIO DE RISCOS PARA TODAS AS ABAS
-                dict_riscos = {}
-                if os.path.exists("dicionario_riscos.json"):
-                    try:
-                        with open("dicionario_riscos.json", "r", encoding="utf-8") as f:
-                            dict_riscos = json.load(f)
-                    except Exception as e:
-                        st.sidebar.error(f"Erro ao ler dicionario_riscos.json: {e}")
 
                 query_respostas_base = db.query(Funcionario.setor, Funcionario.funcao, Pergunta.dimensao, Pergunta.enunciado, Pergunta.inverter_pontuacao, Answer.resposta_texto, Funcionario.cpf, Funcionario.id, Pergunta.opcoes_json, Pergunta.ordem)\
                     .join(SurveySession, Answer.session_id == SurveySession.id)\
@@ -878,42 +582,18 @@ def admin_portal():
                 if is_sim_mode:
                     st.warning("🔬 **MODO SIMULAÇÃO ATIVO:** Os gráficos e relatórios abaixo refletem os dados alterados na aba 'Dados Brutos'. Desligue a chave na aba para retornar aos dados reais do banco.")
 
-                tab_capa, tab_exec, tab_classif, tab_estat, tab_metodo, tab_bruto, tab_gabarito, tab_ger = st.tabs([
+                tab_capa, tab_exec, tab_classif, tab_estat, tab_metodo, tab_bruto, tab_ger = st.tabs([
                     "📑 Capa e Encerramento", "📊 Dashboard Gráfico", "📋 Relatório Classificatório", 
-                    "📈 Estatísticas", "📖 Metodologia", "📥 Dados Brutos", "📑 Gabarito PGR (Zenit)", "⚙️ Gerenciar"
+                    "📈 Estatísticas", "📖 Metodologia", "📥 Dados Brutos", "⚙️ Gerenciar"
                 ])
                 
                 with tab_ger:
-                    st.markdown("### ⚙️ Configurações da Campanha")
-                    c_edit1, c_edit2 = st.columns(2)
-                    
-                    with c_edit1:
-                        st.write(f"**Status Atual:** {c_obj.status}")
-                        st.write(f"**Modo de Coleta:** {'Anônimo (Link Aberto)' if getattr(c_obj, 'tipo_coleta', 'cpf') == 'anonimo' else 'Tradicional (CPF)'}")
-                        
-                        st.markdown("**🔗 Link de Acesso para os Funcionários:**")
-                        st.code(f"{BASE_URL}?emp={c_obj.empresa.codigo_empresa}", language="text")
-                        st.caption("Copie o link acima e envie aos colaboradores pelo WhatsApp ou E-mail.")
-
-                        if c_obj.status == "Ativa" and st.button("🔴 Encerrar Campanha", use_container_width=True):
-                            c_obj.status = "Encerrada"; db.commit(); st.rerun()
-                        if st.button("🗑️ Excluir Campanha", use_container_width=True):
-                            db.delete(c_obj); db.commit(); st.rerun()
-
-                    with c_edit2:
-                        with st.form(f"edit_camp_{c_obj.id}"):
-                            st.write("**✏️ Editar Dados**")
-                            novo_nome = st.text_input("Nome da Campanha", value=c_obj.nome_campanha)
-                            modo_idx = 1 if getattr(c_obj, 'tipo_coleta', 'cpf') == 'anonimo' else 0
-                            novo_modo = st.radio("Modo de Coleta", ["Tradicional (Exige Validação de CPF e Nasc.)", "Link Aberto (100% Anônimo via Dropdown)"], index=modo_idx)
-                            
-                            if st.form_submit_button("💾 Salvar Alterações", use_container_width=True):
-                                c_obj.nome_campanha = novo_nome
-                                c_obj.tipo_coleta = "anonimo" if "Anônimo" in novo_modo else "cpf"
-                                db.commit()
-                                st.success("Salvo com sucesso!")
-                                time.sleep(1)
-                                st.rerun()
+                    c1, c2 = st.columns(2)
+                    c1.write(f"**Status: {c_obj.status}**")
+                    if c_obj.status == "Ativa" and st.button("🔴 Encerrar Campanha"):
+                        c_obj.status = "Encerrada"; db.commit(); st.rerun()
+                    if st.button("🗑️ Excluir Campanha"):
+                        db.delete(c_obj); db.commit(); st.rerun()
 
                     st.divider()
                     st.markdown("### 📥 Importação e Exportação de Respostas (Planilha)")
@@ -1036,159 +716,22 @@ def admin_portal():
                 if df_b.empty: 
                     st.warning("Aguardando primeiras respostas...")
                 else:
-                    with tab_gabarito:
-                        st.markdown("""
-                        <style>
-                        @media print {
-                            @page { margin: 15mm !important; }
-                            body { zoom: 0.90 !important; color: black !important; }
-                            header, footer, [data-testid="stSidebar"], [data-testid="stHeader"], .stButton { display: none !important; }
-                            /* Esconde as caixas sanfonadas e botões na hora da impressão */
-                            h1, [data-testid="stExpander"], [data-testid="stSelectbox"], div[data-baseweb="tab-list"], .no-print { display: none !important; }
-                            .appview-container, .stApp, .main, .block-container { max-width: 100% !important; padding-top: 0 !important; margin-top: 0 !important; padding-bottom: 0 !important;}
-                            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color: black !important; opacity: 1 !important; filter: none !important; transition: none !important; }
-                            
-                            /* Mostra a nossa versão formatada contínua apenas na impressora */
-                            .print-gabarito-doc { display: block !important; }
-                        }
-                        @media screen {
-                            /* Esconde a versão formatada na tela normal do computador */
-                            .print-gabarito-doc { display: none !important; }
-                        }
-                        </style>
-                        """, unsafe_allow_html=True)
-
-                        if st.button("🖨️ Imprimir Gabarito Completo"):
-                            script = f"<script>setTimeout(function() {{ window.parent.print(); }}, 800);</script><div style='display:none;'>{time.time()}</div>"
-                            st.components.v1.html(script, height=0)
-
-                        st.markdown(f"### 📑 Gabarito para o Software Zenit")
-                        st.markdown(f"**Escopo Avaliado:** {txt_escopo_avaliado}")
-                        st.info("💡 **Como usar:** Este gabarito filtra apenas os riscos reais (>= 50% de percepção). Selecione e copie os textos abaixo e cole diretamente no Zenit. (Dica: as caixas estão livres; você pode editar o texto aqui mesmo antes de copiar).")
-                        
-                        fatores_scores_gab = df_s.groupby('Dimensao')['Score'].mean().reset_index()
-                        
-                        score_org = fatores_scores_gab[fatores_scores_gab['Dimensao'] == "Possibilidades de desenvolvimento"]['Score'].values
-                        score_org = score_org[0] if len(score_org) > 0 else 50.0 
-                        
-                        score_lideranca = fatores_scores_gab[fatores_scores_gab['Dimensao'].isin(["Pouco apoio social dos superiores", "Pouco apoio social de colegas"])]['Score'].mean()
-                        if pd.isna(score_lideranca): score_lideranca = 50.0
-                        
-                        score_sbe = fatores_scores_gab[fatores_scores_gab['Dimensao'].isin(["Saúde Geral", "Burnout", "Estresse", "Problemas em dormir", "Sintomas depressivos"])]['Score'].mean()
-                        if pd.isna(score_sbe): score_sbe = 0
-                        
-                        score_co = fatores_scores_gab[fatores_scores_gab['Dimensao'] == "Comportamentos ofensivos"]['Score'].mean()
-                        if pd.isna(score_co): score_co = 0
-                        
-                        severidade = "Leve"
-                        if score_sbe >= 34.0: severidade = "Média"
-                        if score_sbe >= 67.0: severidade = "Grave"
-                        if score_co >= 34.0: severidade = "Gravíssima"
-                        
-                        riscos_acao = fatores_scores_gab[fatores_scores_gab['Score'] >= 50.0].sort_values(by="Dimensao", ascending=True)
-                        
-                        if riscos_acao.empty:
-                            st.success("Nenhum risco atingiu o Nível de Ação para este setor. Todos os indicadores estão na Zona Verde.")
-                        else:
-                            # Início do documento invisível (só aparece na impressão) sem recuos para evitar bug do Markdown
-                            html_print_gabarito = f'''
-<div class="print-gabarito-doc">
-<h2 style="text-align: center; color: #1560bd; border-bottom: 2px solid #ccc; padding-bottom: 10px;">GABARITO DE IMPORTAÇÃO - SISTEMA ZENIT</h2>
-<p style="text-align: center; font-size: 14px; margin-bottom: 30px;"><b>Escopo Avaliado:</b> {txt_escopo_avaliado}</p>
-'''
-
-                            for idx, r in riscos_acao.iterrows():
-                                nome_risco = r['Dimensao']
-                                score_exato = r['Score']
-                                
-                                dados_texto = dict_riscos.get(nome_risco, {
-                                    "cids": "Não mapeado no arquivo JSON.", 
-                                    "fontes": "Não mapeado no arquivo JSON.", 
-                                    "plano": "Não mapeado no arquivo JSON.",
-                                    "acompanhamento": "Não mapeado no arquivo JSON."
-                                })
-                                
-                                calc_zenit = calcular_zenit(score_exato, score_org, score_lideranca, severidade)
-                                
-                                # --- PARTE 1: A CAIXA SANFONADA (FICA NA TELA, SOME NA IMPRESSÃO) ---
-                                with st.expander(f"⚠️ {nome_risco} (Score: {score_exato:.1f}%) - Previsto: {calc_zenit['risco']}"):
-                                    c_col1, c_col2 = st.columns([2, 1])
-                                    
-                                    with c_col1:
-                                        st.markdown("##### 📝 Textos para Cadastro no Zenit")
-                                        st.text_area("Perigo:", value=nome_risco, height=68, key=f"perigo_{nome_risco}_{sel_c_id}")
-                                        st.text_area("Possíveis lesões ou agravos à saúde (CIDs):", value=dados_texto['cids'], height=68, key=f"lesoes_{nome_risco}_{sel_c_id}")
-                                        st.text_area("Fontes ou Circunstâncias:", value=dados_texto['fontes'], height=100, key=f"fontes_{nome_risco}_{sel_c_id}")
-                                        st.text_area("Plano de Ação / Medidas:", value=dados_texto['plano'], height=100, key=f"plano_{nome_risco}_{sel_c_id}")
-                                        st.text_area("Forma de Acompanhamento:", value=dados_texto['acompanhamento'], height=100, key=f"acomp_{nome_risco}_{sel_c_id}")
-                                    
-                                    with c_col2:
-                                        st.markdown("##### ⚙️ Pesos (Aba Avaliação)")
-                                        st.markdown(f"**Severidade:** `{severidade}`")
-                                        st.markdown(f"**Probabilidade - NRs:** `Peso {calc_zenit['pesos']['RE']}`")
-                                        st.markdown(f"**Probabilidade - Prevenção:** `Peso {calc_zenit['pesos']['ME']}`")
-                                        st.markdown(f"**Probabilidade - Exigência:** `Peso {calc_zenit['pesos']['ET']}`")
-                                        st.markdown(f"**Probabilidade - NR09:** `Peso 1 (Não se aplica)`")
-                                        st.divider()
-                                        st.markdown("##### 🎯 Resultado Esperado (Zenit)")
-                                        st.markdown(f"**Probabilidade Final:** `{calc_zenit['prob_calc']} (PR: {calc_zenit['PR']})`")
-                                        st.markdown(f"**Nível do Risco:** `{calc_zenit['risco']}`")
-                                        st.markdown(f"**Critério:** `{calc_zenit['acao']['criterio']}`")
-                                        st.markdown(f"**Decisão:** `{calc_zenit['acao']['decisao']}`")
-                                        st.markdown(f"**Aceitabilidade:** `{calc_zenit['acao']['aceitabilidade']}`")
-
-                                # --- PARTE 2: O BLOCO HTML INVISÍVEL (APARECE SÓ NA IMPRESSÃO) sem espaços no começo ---
-                                html_print_gabarito += f'''
-<div style="margin-bottom: 25px; page-break-inside: avoid; border: 1px solid #000; padding: 15px; border-radius: 5px;">
-<h3 style="color: #000; margin-top: 0; border-bottom: 1px solid #ccc; padding-bottom: 5px;">⚠️ {nome_risco} <span style="font-size: 14px; font-weight: normal;">(Score: {score_exato:.1f}%)</span></h3>
-<table style="width: 100%; font-size: 12px; border-collapse: collapse;">
-<tr>
-<td style="width: 65%; vertical-align: top; padding-right: 15px;">
-<p style="margin: 0 0 5px 0;"><b>Perigo:</b> {nome_risco}</p>
-<p style="margin: 0 0 5px 0;"><b>Possíveis lesões (CIDs):</b> {dados_texto['cids']}</p>
-<p style="margin: 0 0 5px 0;"><b>Fontes ou Circunstâncias:</b><br>{dados_texto['fontes']}</p>
-<p style="margin: 0 0 5px 0;"><b>Plano de Ação / Medidas:</b><br>{dados_texto['plano']}</p>
-<p style="margin: 0 0 0 0;"><b>Forma de Acompanhamento:</b><br>{dados_texto['acompanhamento']}</p>
-</td>
-<td style="width: 35%; vertical-align: top; background-color: #f4f4f4; padding: 10px; border-left: 1px solid #ccc;">
-<h4 style="margin: 0 0 10px 0; color:#000; font-size: 13px;">Parâmetros Zenit</h4>
-<p style="margin: 0 0 3px 0;"><b>Severidade:</b> {severidade}</p>
-<p style="margin: 0 0 3px 0;"><b>Prob. NRs (RE):</b> Peso {calc_zenit['pesos']['RE']}</p>
-<p style="margin: 0 0 3px 0;"><b>Prob. Prevenção (ME):</b> Peso {calc_zenit['pesos']['ME']}</p>
-<p style="margin: 0 0 3px 0;"><b>Prob. Exigência (ET):</b> Peso {calc_zenit['pesos']['ET']}</p>
-<p style="margin: 0 0 10px 0;"><b>Prob. NR09 (PE):</b> Peso 1</p>
-<p style="margin: 0 0 3px 0; border-top: 1px solid #ccc; padding-top: 5px;"><b>Prob. Final:</b> {calc_zenit['prob_calc']} (PR: {calc_zenit['PR']})</p>
-<p style="margin: 0 0 3px 0;"><b>Nível do Risco:</b> {calc_zenit['risco']}</p>
-<p style="margin: 0 0 3px 0;"><b>Critério:</b> {calc_zenit['acao']['criterio']}</p>
-<p style="margin: 0 0 3px 0;"><b>Decisão:</b> {calc_zenit['acao']['decisao']}</p>
-<p style="margin: 0 0 0 0;"><b>Aceitabilidade:</b> {calc_zenit['acao']['aceitabilidade']}</p>
-</td>
-</tr>
-</table>
-</div>
-'''
-                            
-                            # Fecha a div principal da impressão
-                            html_print_gabarito += "</div>"
-                            # Injeta o código invisível na tela
-                            st.markdown(html_print_gabarito, unsafe_allow_html=True)
-
                     with tab_capa:
                         st.markdown("""
                         <style>
                         @media print {
-                            @page { margin: 15mm !important; }
+                            @page { size: A4 portrait !important; margin: 15mm !important; }
                             body { zoom: 1.0 !important; color: black !important; }
                             header, footer, [data-testid="stSidebar"], [data-testid="stHeader"], .stButton { display: none !important; }
                             h1, [data-testid="stExpander"], [data-testid="stSelectbox"], div[data-baseweb="tab-list"], .no-print { display: none !important; }
                             .appview-container, .stApp, .main, .block-container { max-width: 100% !important; padding-top: 0 !important; margin-top: 0 !important; padding-bottom: 0 !important;}
-                            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color: black !important; opacity: 1 !important; filter: none !important; transition: none !important; }
+                            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color: black !important; }
                         }
                         </style>
                         """, unsafe_allow_html=True)
                         
                         if st.button("🖨️ Imprimir Capa e Encerramento"):
-                            script = f"<script>setTimeout(function() {{ window.parent.print(); }}, 800);</script><div style='display:none;'>{time.time()}</div>"
+                            script = f"<script>window.parent.print();</script><div style='display:none;'>{time.time()}</div>"
                             st.components.v1.html(script, height=0)
                             
                         nome_responsavel = c_obj.empresa.nome_responsavel if c_obj.empresa.nome_responsavel else "Nome do Responsável Técnico"
@@ -1236,20 +779,123 @@ def admin_portal():
                         st.markdown("""
                         <style>
                         @media print {
-                            @page { margin: 10mm !important; }
+                            @page { size: A4 portrait !important; margin: 10mm !important; }
                             body { zoom: 0.85 !important; }
                             header, footer, [data-testid="stSidebar"], [data-testid="stHeader"], .stButton { display: none !important; }
                             h1, [data-testid="stExpander"], [data-testid="stSelectbox"], div[data-baseweb="tab-list"], .no-print { display: none !important; }
                             .appview-container, .stApp, .main, .block-container { max-width: 100% !important; padding-top: 0 !important; margin-top: 0 !important; padding-bottom: 0 !important;}
                             div[data-testid="stVerticalBlock"] > div:first-child { padding-top: 0 !important; }
-                            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; opacity: 1 !important; filter: none !important; transition: none !important; }
+                            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                         }
                         </style>
                         """, unsafe_allow_html=True)
 
                         if st.button("🖨️ Imprimir Relatório Classificatório"):
-                            script = f"<script>setTimeout(function() {{ window.parent.print(); }}, 800);</script><div style='display:none;'>{time.time()}</div>"
+                            script = f"<script>window.parent.print();</script><div style='display:none;'>{time.time()}</div>"
                             st.components.v1.html(script, height=0)
+
+                        DICT_FATORES = {
+                            "Exigências quantitativas": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Reorganizar tarefas e redistribuir carga de trabalho entre a equipe."},
+                            "Ritmo de trabalho acelerado": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Rever prazos e fluxos operacionais; incluir pausas programadas."},
+                            "Ritmo de trabalho": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Rever prazos e fluxos operacionais; incluir pausas programadas."},
+                            "Altas exigências cognitivas": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Fornecer suporte técnico, treinamentos e ferramentas que facilitem decisões."},
+                            "Exigências cognitivas": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Fornecer suporte técnico, treinamentos e ferramentas que facilitem decisões."},
+                            "Altas exigências emocionais": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Criar espaços de escuta ativa e oferecer suporte psicológico contínuo."},
+                            "Exigências emocionais": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Criar espaços de escuta ativa e oferecer suporte psicológico contínuo."},
+                            "Pouca influência no trabalho": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Ampliar a participação dos colaboradores em decisões sobre suas atividades."},
+                            "Influência no trabalho": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Ampliar a participação dos colaboradores em decisões sobre suas atividades."},
+                            "Baixa possibilidades de desenvolvimento": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Estabelecer plano de carreira e treinamentos periódicos."},
+                            "Possibilidades de desenvolvimento": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Estabelecer plano de carreira e treinamentos periódicos."},
+                            "Pouca previsibilidade de rotina": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Garantir maior clareza na agenda de tarefas e planejamento de demandas."},
+                            "Previsibilidade": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Garantir maior clareza na agenda de tarefas e planejamento de demandas."},
+                            "Pouca transparência do papel laboral desempenhado": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Atualizar e comunicar com clareza as descrições de cargos e responsabilidades."},
+                            "Transparência do papel laboral desempenhado": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Atualizar e comunicar com clareza as descrições de cargos e responsabilidades."},
+                            "Déficit nas recompensas": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Implementar sistema de reconhecimento por desempenho (não apenas financeiro)."},
+                            "Recompensas": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Implementar sistema de reconhecimento por desempenho (não apenas financeiro)."},
+                            "Conflitos laborais": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Criar um comitê de mediação de conflitos e promover treinamentos em comunicação."},
+                            "Pouco apoio social de colegas": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Promover integração por meio de dinâmicas de grupo e projetos colaborativos."},
+                            "Apoio social de colegas": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Promover integração por meio de dinâmicas de grupo e projetos colaborativos."},
+                            "Pouco apoio social dos superiores": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Capacitar líderes em gestão humanizada e empática."},
+                            "Apoio social de superiores": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Capacitar líderes em gestão humanizada e empática."},
+                            "Pouca cooperação no trabalho": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Estimular o trabalho em equipe com metas compartilhadas."},
+                            "Comunidade social no trabalho": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Estimular o trabalho em equipe com metas compartilhadas."},
+                            "Má qualidade da liderança": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Realizar avaliação dos líderes com feedback 360° e programa de desenvolvimento de líderes."},
+                            "Qualidade de liderança": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Realizar avaliação dos líderes com feedback 360° e programa de desenvolvimento de líderes."},
+                            "Baixa confiança entre pares": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Estimular valores como ética e respeito; aplicar códigos de conduta."},
+                            "Confiança horizontal": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Estimular valores como ética e respeito; aplicar códigos de conduta."},
+                            "Baixa confiança na gerência": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Aumentar a transparência das decisões da gestão e comunicar-se melhor com a equipe."},
+                            "Confiança vertical": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Aumentar a transparência das decisões da gestão e comunicar-se melhor com a equipe."},
+                            "Injustiça e desrespeito": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Criar políticas organizacionais claras de justiça e respeito no ambiente de trabalho."},
+                            "Justiça e respeito": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Criar políticas organizacionais claras de justiça e respeito no ambiente de trabalho."},
+                            "Baixa autoeficácia": {"macro": "P", "macro_nome": "PERSONALIDADE - P", "acao": "Oferecer feedbacks positivos e oportunidades de desenvolvimento individual."},
+                            "Auto-eficácia": {"macro": "P", "macro_nome": "PERSONALIDADE - P", "acao": "Oferecer feedbacks positivos e oportunidades de desenvolvimento individual."},
+                            "Trabalho sem significado": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Realinhar as tarefas ao propósito organizacional e envolver os colaboradores na missão."},
+                            "Significado do trabalho": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Realinhar as tarefas ao propósito organizacional e envolver os colaboradores na missão."},
+                            "Pouco compromisso face ao local de trabalho": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Fortalecer o vínculo organizacional com ações de valorização e pertencimento."},
+                            "Compromisso face ao local de trabalho": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Fortalecer o vínculo organizacional com ações de valorização e pertencimento."},
+                            "Insatisfação no trabalho": {"macro": "ITI", "macro_nome": "INTERFACE TRABALHO-INDIVÍDUO - ITI", "acao": "Aplicar pesquisas de clima e agir sobre os pontos críticos com agilidade."},
+                            "Satisfação no trabalho": {"macro": "ITI", "macro_nome": "INTERFACE TRABALHO-INDIVÍDUO - ITI", "acao": "Aplicar pesquisas de clima e agir sobre os pontos críticos com agilidade."},
+                            "Insegurança laboral": {"macro": "ITI", "macro_nome": "INTERFACE TRABALHO-INDIVÍDUO - ITI", "acao": "Garantir estabilidade por meio de contratos claros e comunicação sobre o futuro."},
+                            "Falta de saúde geral": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Criar programas de saúde física, mental e preventiva com incentivos à adesão."},
+                            "Saúde Geral": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Criar programas de saúde física, mental e preventiva com incentivos à adesão."},
+                            "Conflito trabalho/ família": {"macro": "ITI", "macro_nome": "INTERFACE TRABALHO-INDIVÍDUO - ITI", "acao": "Adotar políticas de flexibilidade, como horários adaptáveis ou home office parcial."},
+                            "Conflito trabalho/família": {"macro": "ITI", "macro_nome": "INTERFACE TRABALHO-INDIVÍDUO - ITI", "acao": "Adotar políticas de flexibilidade, como horários adaptáveis ou home office parcial."},
+                            "Problemas em dormir": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Promover campanhas de higiene do sono e equilíbrio jornada/descanso."},
+                            "Burnout": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Reduzir carga de trabalho, flexibilizar horários e investir em suporte emocional."},
+                            "Estresse": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Implantar programas de gestão do estresse, estratégias de copyng, inteligência emocional (mindfulness, ginástica laboral)."},
+                            "Stress": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Implantar programas de gestão do estresse, estratégias de copyng, inteligência emocional (mindfulness, ginástica laboral)."},
+                            "Sintomas depressivos": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Disponibilizar atendimento psicológico e acompanhar com RH e SESMT."},
+                            "Comportamentos ofensivos": {"macro": "CO", "macro_nome": "COMPORTAMENTOS OFENSIVOS - CO", "acao": "Criar canais de denúncia seguros e implementar políticas de tolerância zero para assédio."}
+                        }
+
+                        OBS_MACRO = {
+                            "EXIGÊNCIAS LABORAIS - EL": {
+                                "FAVORÁVEL": "Carga de trabalho adequada e ritmo equilibrado.",
+                                "MODERADO": "Carga de trabalho no limite; necessário monitorar e balancear.",
+                                "RISCO": "Sobrecarga de trabalho identificada, necessidade de revisão imediata."
+                            },
+                            "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC": {
+                                "FAVORÁVEL": "Boa autonomia e uso de habilidades no trabalho.",
+                                "MODERADO": "Autonomia parcial; oportunidades para maior engajamento.",
+                                "RISCO": "Pouco controle sobre tarefas e decisões; desmotivação latente."
+                            },
+                            "RELAÇÕES SOCIAIS E LIDERANÇA - RSL": {
+                                "FAVORÁVEL": "Boa comunicação, papéis claros e suporte da liderança.",
+                                "MODERADO": "Algumas falhas de comunicação e clareza de papéis.",
+                                "RISCO": "Conflitos interpessoais ou lacunas significativas na liderança."
+                            },
+                            "INTERFACE TRABALHO-INDIVÍDUO - ITI": {
+                                "FAVORÁVEL": "Bom equilíbrio entre vida pessoal e profissional.",
+                                "MODERADO": "Algumas interferências entre trabalho e vida pessoal.",
+                                "RISCO": "Forte desequilíbrio, trabalho afetando negativamente a vida pessoal."
+                            },
+                            "VALORES NO LOCAL DE TRABALHO - VLT": {
+                                "FAVORÁVEL": "Ambiente de respeito, ética e confiança.",
+                                "MODERADO": "Confiabilidade razoável, com pequenas tensões percebidas.",
+                                "RISCO": "Falta de confiança, desrespeito ou percepção de injustiça."
+                            },
+                            "PERSONALIDADE - P": {
+                                "FAVORÁVEL": "Alta autoeficácia e perspectivas positivas.",
+                                "MODERADO": "Autoeficácia moderada; espaço para fortalecimento individual.",
+                                "RISCO": "Baixa autoeficácia e insegurança; necessidade de suporte."
+                            },
+                            "SAÚDE E BEM-ESTAR - SBE": {
+                                "FAVORÁVEL": "Bem-estar físico e emocional preservados; sono adequado.",
+                                "MODERADO": "Sinais leves de fadiga, estresse ou sono irregular.",
+                                "RISCO": "Presença de exaustão, estresse alto ou sintomas de adoecimento."
+                            },
+                            "COMPORTAMENTOS OFENSIVOS - CO": {
+                                "FAVORÁVEL": "Ambiente respeitoso, sem relatos de ofensas.",
+                                "MODERADO": "Ocorrências pontuais de desrespeito ou conflitos.",
+                                "RISCO": "Relatos críticos de assédio ou violência; tolerância zero."
+                            }
+                        }
+
+                        def classificar_risco_novo(v):
+                            if pd.isna(v): return 'N/A', 'Monitorar'
+                            if v <= 49.99: return 'FAVORÁVEL', 'Monitorar'
+                            if v <= 74.99: return 'MODERADO', 'Planejar ações corretivas'
+                            return 'RISCO', 'Intervenção imediata'
 
                         def build_html_table(df, headers, widths):
                             html = "<table style='width: 100%; border-collapse: collapse; margin-bottom: 10px; color: black; font-size: 9px; page-break-inside: avoid;'>"
@@ -1358,7 +1004,7 @@ def admin_portal():
                             st.markdown(build_html_table(df_tabela2_print, ['RESULTADO - DIMENSÕES COPSOQ-II', 'MÉDIA', 'CLASSIFICAÇÃO', 'RECOMENDAÇÕES'], ['45%', '10%', '15%', '30%']), unsafe_allow_html=True)
 
                         st.markdown("""
-                        <h3 style='color: black; margin-top: 30px; font-size: 16px;'>Definição de cada dimensão macro avaliada:</h3>
+                        <h3 style='color: black; margin-top: 30px; font-size: 16px;'>Definição de cada dimensão avaliada:</h3>
                         <p style='font-size: 12px; color: black;'>
                         <b>Exigências laborais</b> verificam a carga física e mental do trabalho, como pressão por prazos, volume de tarefas e demandas emocionais.<br>
                         <b>Organização do trabalho e conteúdo</b> analisam a clareza das tarefas, autonomia, variedade e previsibilidade no trabalho.<br>
@@ -1422,27 +1068,13 @@ def admin_portal():
                         - Existência e eficácia das medidas de controle atualmente adotadas.</p>
                         <p style='font-size: 12px; color: black;'>Essa análise permitirá classificar os riscos, definir o nível de prioridade das ações e integrar os riscos psicossociais de forma adequada ao Programa de Gerenciamento de Riscos (PGR).</p>
                         """, unsafe_allow_html=True)
-                        
-                        # --- GLOSSÁRIO DINÂMICO ---
-                        riscos_glossario = fatores_scores[fatores_scores['Score'] >= 50.0].sort_values(by="Dimensao")
-                        if not riscos_glossario.empty:
-                            st.markdown("<h3 style='color: black; margin-top: 30px; font-size: 16px; page-break-before: always;'>GLOSSÁRIO TÉCNICO DE RISCOS ESPECÍFICOS IDENTIFICADOS</h3>", unsafe_allow_html=True)
-                            st.markdown("<p style='font-size: 12px; color: black;'>Abaixo constam as definições técnicas exclusivas dos fatores de risco que atingiram o Nível de Ação (Moderado ou Crítico) no presente escopo avaliado, visando melhor compreensão das intervenções recomendadas na matriz do PGR:</p>", unsafe_allow_html=True)
-                            
-                            glossario_html = "<ul style='font-size: 12px; color: black; text-align: justify;'>"
-                            for _, row in riscos_glossario.iterrows():
-                                dim_nome = row['Dimensao']
-                                def_risco = dict_riscos.get(dim_nome, {}).get("definicao", "Definição não mapeada.")
-                                glossario_html += f"<li style='margin-bottom: 8px;'><b>{dim_nome}:</b> {def_risco}</li>"
-                            glossario_html += "</ul>"
-                            
-                            st.markdown(glossario_html, unsafe_allow_html=True)
 
                     with tab_estat:
                         st.markdown("""
                         <style>
                         @media print {
-                            @page { margin: 15mm !important; }
+                            /* FORÇA O RETRATO (PORTRAIT) NESTA ABA */
+                            @page { size: A4 portrait !important; margin: 15mm !important; }
                             body { zoom: 1.0 !important; }
                             header, footer, [data-testid="stSidebar"], [data-testid="stHeader"], .stButton { display: none !important; }
                             h1, [data-testid="stExpander"], [data-testid="stSelectbox"], div[data-baseweb="tab-list"], .no-print { display: none !important; }
@@ -1450,7 +1082,7 @@ def admin_portal():
                                 max-width: 100% !important; padding-top: 0 !important; margin-top: 0 !important; padding-bottom: 0 !important;
                             }
                             div[data-testid="stVerticalBlock"] > div:first-child { padding-top: 0 !important; }
-                            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; opacity: 1 !important; filter: none !important; transition: none !important; }
+                            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                             .barra-bg { background-color: #e6e6e6 !important; }
                             .barra-fill { background-color: #1560bd !important; }
                         }
@@ -1458,7 +1090,7 @@ def admin_portal():
                         """, unsafe_allow_html=True)
 
                         if st.button("🖨️ Imprimir Estatísticas"):
-                            script = f"<script>setTimeout(function() {{ window.parent.print(); }}, 800);</script><div style='display:none;'>{time.time()}</div>"
+                            script = f"<script>window.parent.print();</script><div style='display:none;'>{time.time()}</div>"
                             st.components.v1.html(script, height=0)
 
                         total_participantes = df_raw['FuncID'].nunique() if not df_raw.empty else 0
@@ -1513,7 +1145,8 @@ def admin_portal():
                         st.markdown("""
                         <style>
                         @media print {
-                            @page { margin: 10mm !important; }
+                            /* FORÇA A PAISAGEM (LANDSCAPE) NESTA ABA */
+                            @page { size: A4 landscape !important; margin: 10mm !important; }
                             body { zoom: 1.0 !important; }
                             header, footer, [data-testid="stSidebar"], [data-testid="stHeader"], .stButton { display: none !important; }
                             h1, [data-testid="stExpander"], [data-testid="stSelectbox"], div[data-baseweb="tab-list"], .no-print { display: none !important; }
@@ -1521,7 +1154,7 @@ def admin_portal():
                                 max-width: 100% !important; padding-top: 0 !important; margin-top: 0 !important; padding-bottom: 0 !important;
                             }
                             div[data-testid="stVerticalBlock"] > div:first-child { padding-top: 0 !important; }
-                            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; opacity: 1 !important; filter: none !important; transition: none !important; }
+                            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                             h2, h3 { color: black !important; page-break-after: avoid !important; break-after: avoid !important; }
                             table { color: black !important; }
                             [data-testid="stTable"], table, th, td, [data-testid="stPlotlyChart"] { opacity: 1 !important; }
@@ -1535,7 +1168,7 @@ def admin_portal():
                         """, unsafe_allow_html=True)
 
                         if st.button("🖨️ Imprimir Dashboard Gráfico"):
-                            script = f"<script>setTimeout(function() {{ window.parent.print(); }}, 800);</script><div style='display:none;'>{time.time()}</div>"
+                            script = f"<script>window.parent.print();</script><div style='display:none;'>{time.time()}</div>"
                             st.components.v1.html(script, height=0)
 
                         st.markdown("<div style='page-break-before: always;'></div>", unsafe_allow_html=True)
@@ -1616,19 +1249,19 @@ def admin_portal():
                     st.markdown("""
                     <style>
                     @media print {
-                        @page { margin: 15mm !important; }
+                        @page { size: A4 portrait !important; margin: 15mm !important; }
                         body { zoom: 0.9 !important; color: black !important; }
                         header, footer, [data-testid="stSidebar"], [data-testid="stHeader"], .stButton { display: none !important; }
                         h1, [data-testid="stExpander"], [data-testid="stSelectbox"], div[data-baseweb="tab-list"], .no-print { display: none !important; }
                         .appview-container, .stApp, .main, .block-container { max-width: 100% !important; padding-top: 0 !important; margin-top: 0 !important; padding-bottom: 0 !important;}
-                        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color: black !important; opacity: 1 !important; filter: none !important; transition: none !important; }
+                        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color: black !important; }
                         table { font-size: 11px !important; }
                     }
                     </style>
                     """, unsafe_allow_html=True)
 
                     if st.button("🖨️ Imprimir Metodologia Técnica"):
-                        script = f"<script>setTimeout(function() {{ window.parent.print(); }}, 800);</script><div style='display:none;'>{time.time()}</div>"
+                        script = f"<script>window.parent.print();</script><div style='display:none;'>{time.time()}</div>"
                         st.components.v1.html(script, height=0)
 
                     st.markdown(f"""
@@ -1718,24 +1351,11 @@ def main():
         db = get_db()
         empresa = db.query(Empresa).filter_by(codigo_empresa=emp_code).first()
         if empresa:
-            camp_ativa = db.query(Campanha).filter(
-                Campanha.empresa_id == empresa.id, 
-                Campanha.status == "Ativa"
-            ).order_by(Campanha.id.desc()).first()
-            
-            if not camp_ativa:
-                st.title(f"Acesso: {empresa.nome_empresa}")
-                st.info("Não há nenhuma campanha de pesquisa ativa para sua empresa no momento.")
+            if 'logged_user_id' not in st.session_state: login_colaborador(empresa)
             else:
-                if getattr(camp_ativa, 'tipo_coleta', 'cpf') == "anonimo":
-                    renderizar_questionario_anonimo(empresa, camp_ativa)
-                else:
-                    if 'logged_user_id' not in st.session_state:
-                        login_colaborador(empresa)
-                    else:
-                        user = db.query(Funcionario).get(st.session_state['logged_user_id'])
-                        if user: renderizar_questionario_dinamico(user, camp_ativa)
-                        else: st.session_state.clear(); st.rerun()
+                user = db.query(Funcionario).get(st.session_state['logged_user_id'])
+                if user: portal_colaborador(empresa, user)
+                else: st.session_state.clear(); st.rerun()
         else: st.error("Empresa não encontrada.")
     else: admin_portal()
 

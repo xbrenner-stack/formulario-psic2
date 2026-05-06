@@ -146,140 +146,7 @@ def processar_data_robusta(valor):
     except:
         return ""
 
-# --- DICIONÁRIOS E FUNÇÕES DE CÁLCULO GLOBAIS ---
-DICT_FATORES = {
-    "Exigências quantitativas": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Reorganizar tarefas e redistribuir carga de trabalho entre a equipe."},
-    "Ritmo de trabalho acelerado": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Rever prazos e fluxos operacionais; incluir pausas programadas."},
-    "Ritmo de trabalho": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Rever prazos e fluxos operacionais; incluir pausas programadas."},
-    "Altas exigências cognitivas": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Fornecer suporte técnico, treinamentos e ferramentas que facilitem decisões."},
-    "Exigências cognitivas": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Fornecer suporte técnico, treinamentos e ferramentas que facilitem decisões."},
-    "Altas exigências emocionais": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Criar espaços de escuta ativa e oferecer suporte psicológico contínuo."},
-    "Exigências emocionais": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Criar espaços de escuta ativa e oferecer suporte psicológico contínuo."},
-    "Pouca influência no trabalho": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Ampliar a participação dos colaboradores em decisões sobre suas atividades."},
-    "Influência no trabalho": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Ampliar a participação dos colaboradores em decisões sobre suas atividades."},
-    "Baixa possibilidades de desenvolvimento": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Estabelecer plano de carreira e treinamentos periódicos."},
-    "Possibilidades de desenvolvimento": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Estabelecer plano de carreira e treinamentos periódicos."},
-    "Pouca previsibilidade de rotina": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Garantir maior clareza na agenda de tarefas e planejamento de demandas."},
-    "Previsibilidade": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Garantir maior clareza na agenda de tarefas e planejamento de demandas."},
-    "Pouca transparência do papel laboral desempenhado": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Atualizar e comunicar com clareza as descrições de cargos e responsabilidades."},
-    "Transparência do papel laboral desempenhado": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Atualizar e comunicar com clareza as descrições de cargos e responsabilidades."},
-    "Déficit nas recompensas": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Implementar sistema de reconhecimento por desempenho (não apenas financeiro)."},
-    "Recompensas": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Implementar sistema de reconhecimento por desempenho (não apenas financeiro)."},
-    "Conflitos laborais": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Criar um comitê de mediação de conflitos e promover treinamentos em comunicação."},
-    "Pouco apoio social de colegas": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Promover integração por meio de dinâmicas de grupo e projetos colaborativos."},
-    "Apoio social de colegas": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Promover integração por meio de dinâmicas de grupo e projetos colaborativos."},
-    "Pouco apoio social dos superiores": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Capacitar líderes em gestão humanizada e empática."},
-    "Apoio social de superiores": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Capacitar líderes em gestão humanizada e empática."},
-    "Pouca cooperação no trabalho": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Estimular o trabalho em equipe com metas compartilhadas."},
-    "Comunidade social no trabalho": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Estimular o trabalho em equipe com metas compartilhadas."},
-    "Má qualidade da liderança": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Realizar avaliação dos líderes com feedback 360° e programa de desenvolvimento de líderes."},
-    "Qualidade de liderança": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Realizar avaliação dos líderes com feedback 360° e programa de desenvolvimento de líderes."},
-    "Baixa confiança entre pares": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Estimular valores como ética e respeito; aplicar códigos de conduta."},
-    "Confiança horizontal": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Estimular valores como ética e respeito; aplicar códigos de conduta."},
-    "Baixa confiança na gerência": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Aumentar a transparência das decisões da gestão e comunicar-se melhor com a equipe."},
-    "Confiança vertical": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Aumentar a transparência das decisões da gestão e comunicar-se melhor com a equipe."},
-    "Injustiça e desrespeito": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Criar políticas organizacionais claras de justiça e respeito no ambiente de trabalho."},
-    "Justiça e respeito": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Criar políticas organizacionais claras de justiça e respeito no ambiente de trabalho."},
-    "Baixa autoeficácia": {"macro": "P", "macro_nome": "PERSONALIDADE - P", "acao": "Oferecer feedbacks positivos e oportunidades de desenvolvimento individual."},
-    "Auto-eficácia": {"macro": "P", "macro_nome": "PERSONALIDADE - P", "acao": "Oferecer feedbacks positivos e oportunidades de desenvolvimento individual."},
-    "Trabalho sem significado": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Realinhar as tarefas ao propósito organizacional e envolver os colaboradores na missão."},
-    "Significado do trabalho": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Realinhar as tarefas ao propósito organizacional e envolver os colaboradores na missão."},
-    "Pouco compromisso face ao local de trabalho": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Fortalecer o vínculo organizacional com ações de valorização e pertencimento."},
-    "Compromisso face ao local de trabalho": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Fortalecer o vínculo organizacional com ações de valorização e pertencimento."},
-    "Insatisfação no trabalho": {"macro": "ITI", "macro_nome": "INTERFACE TRABALHO-INDIVÍDUO - ITI", "acao": "Aplicar pesquisas de clima e agir sobre os pontos críticos com agilidade."},
-    "Satisfação no trabalho": {"macro": "ITI", "macro_nome": "INTERFACE TRABALHO-INDIVÍDUO - ITI", "acao": "Aplicar pesquisas de clima e agir sobre os pontos críticos com agilidade."},
-    "Insegurança laboral": {"macro": "ITI", "macro_nome": "INTERFACE TRABALHO-INDIVÍDUO - ITI", "acao": "Garantir estabilidade por meio de contratos claros e comunicação sobre o futuro."},
-    "Falta de saúde geral": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Criar programas de saúde física, mental e preventiva com incentivos à adesão."},
-    "Saúde Geral": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Criar programas de saúde física, mental e preventiva com incentivos à adesão."},
-    "Conflito trabalho/ família": {"macro": "ITI", "macro_nome": "INTERFACE TRABALHO-INDIVÍDUO - ITI", "acao": "Adotar políticas de flexibilidade, como horários adaptáveis ou home office parcial."},
-    "Conflito trabalho/família": {"macro": "ITI", "macro_nome": "INTERFACE TRABALHO-INDIVÍDUO - ITI", "acao": "Adotar políticas de flexibilidade, como horários adaptáveis ou home office parcial."},
-    "Problemas em dormir": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Promover campanhas de higiene do sono e equilíbrio jornada/descanso."},
-    "Burnout": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Reduzir carga de trabalho, flexibilizar horários e investir em suporte emocional."},
-    "Estresse": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Implantar programas de gestão do estresse, estratégias de copyng, inteligência emocional (mindfulness, ginástica laboral)."},
-    "Stress": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Implantar programas de gestão do estresse, estratégias de copyng, inteligência emocional (mindfulness, ginástica laboral)."},
-    "Sintomas depressivos": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Disponibilizar atendimento psicológico e acompanhar com RH e SESMT."},
-    "Comportamentos ofensivos": {"macro": "CO", "macro_nome": "COMPORTAMENTOS OFENSIVOS - CO", "acao": "Criar canais de denúncia seguros e implementar políticas de tolerância zero para assédio."}
-}
-
-OBS_MACRO = {
-    "EXIGÊNCIAS LABORAIS - EL": {
-        "FAVORÁVEL": "Carga de trabalho adequada e ritmo equilibrado.",
-        "MODERADO": "Carga de trabalho no limite; necessário monitorar e balancear.",
-        "RISCO": "Sobrecarga de trabalho identificada, necessidade de revisão imediata."
-    },
-    "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC": {
-        "FAVORÁVEL": "Boa autonomia e uso de habilidades no trabalho.",
-        "MODERADO": "Autonomia parcial; oportunidades para maior engajamento.",
-        "RISCO": "Pouco controle sobre tarefas e decisões; desmotivação latente."
-    },
-    "RELAÇÕES SOCIAIS E LIDERANÇA - RSL": {
-        "FAVORÁVEL": "Boa comunicação, papéis claros e suporte da liderança.",
-        "MODERADO": "Algumas falhas de comunicação e clareza de papéis.",
-        "RISCO": "Conflitos interpessoais ou lacunas significativas na liderança."
-    },
-    "INTERFACE TRABALHO-INDIVÍDUO - ITI": {
-        "FAVORÁVEL": "Bom equilíbrio entre vida pessoal e profissional.",
-        "MODERADO": "Algumas interferências entre trabalho e vida pessoal.",
-        "RISCO": "Forte desequilíbrio, trabalho afetando negativamente a vida pessoal."
-    },
-    "VALORES NO LOCAL DE TRABALHO - VLT": {
-        "FAVORÁVEL": "Ambiente de respeito, ética e confiança.",
-        "MODERADO": "Confiabilidade razoável, com pequenas tensões percebidas.",
-        "RISCO": "Falta de confiança, desrespeito ou percepção de injustiça."
-    },
-    "PERSONALIDADE - P": {
-        "FAVORÁVEL": "Alta autoeficácia e perspectivas positivas.",
-        "MODERADO": "Autoeficácia moderada; espaço para fortalecimento individual.",
-        "RISCO": "Baixa autoeficácia e insegurança; necessidade de suporte."
-    },
-    "SAÚDE E BEM-ESTAR - SBE": {
-        "FAVORÁVEL": "Bem-estar físico e emocional preservados; sono adequado.",
-        "MODERADO": "Sinais leves de fadiga, estresse ou sono irregular.",
-        "RISCO": "Presença de exaustão, estresse alto ou sintomas de adoecimento."
-    },
-    "COMPORTAMENTOS OFENSIVOS - CO": {
-        "FAVORÁVEL": "Ambiente respeitoso, sem relatos de ofensas.",
-        "MODERADO": "Ocorrências pontuais de desrespeito ou conflitos.",
-        "RISCO": "Relatos críticos de assédio ou violência; tolerância zero."
-    }
-}
-
-def classificar_risco_novo(v):
-    if pd.isna(v): return 'N/A', 'Monitorar'
-    if v <= 49.99: return 'FAVORÁVEL', 'Monitorar'
-    if v <= 74.99: return 'MODERADO', 'Planejar ações corretivas'
-    return 'RISCO', 'Intervenção imediata'
-
-def classificar_risco_exec(v):
-    if v <= 49.99: return 'BAIXO', '#22c55e'
-    if v <= 74.99: return 'MODERADO', '#eab308'
-    return 'ALTO', '#ef4444'
-
-def build_html_table(df, headers, widths):
-    html = "<table style='width: 100%; border-collapse: collapse; margin-bottom: 10px; color: black; font-size: 9px; page-break-inside: avoid;'>"
-    html += "<thead style='display: table-header-group;'><tr style='background-color: #1560bd; color: white;'>"
-    for i, h in enumerate(headers):
-        align = "center" if h in ['RESULTADO', 'MÉDIA', 'CLASSIFIC', 'CLASSIFICAÇÃO'] else "left"
-        html += f"<th style='padding: 4px; border: 1px solid #ddd; width: {widths[i]}; text-align: {align};'>{h}</th>"
-    html += "</tr></thead><tbody>"
-    for _, row in df.iterrows():
-        html += "<tr>"
-        for i, col in enumerate(df.columns):
-            val = row[col]
-            if col in ['RESULTADO', 'MÉDIA']: val = f"{val:.1f}%"
-            
-            align = "center" if headers[i] in ['RESULTADO', 'MÉDIA', 'CLASSIFIC', 'CLASSIFICAÇÃO'] else "left"
-            style = f"padding: 4px; border: 1px solid #ddd; text-align: {align};"
-            
-            if col in ['CLASSIFIC', 'CLASSIFICAÇÃO']:
-                if val == 'FAVORÁVEL': style += " color: #16a34a; font-weight: bold;"
-                elif val == 'MODERADO': style += " color: #ca8a04; font-weight: bold;"
-                elif val == 'RISCO': style += " color: #dc2626; font-weight: bold;"
-            html += f"<td style='{style}'>{val}</td>"
-        html += "</tr>"
-    html += "</tbody></table>"
-    return html
-
+# Função do Motor do Zenit (Cálculo de Matriz de Risco)
 def calcular_zenit(score_exigencia, score_org, score_lideranca, severidade_str):
     def converter_peso(v):
         if v <= 33.33: return 1
@@ -300,7 +167,6 @@ def calcular_zenit(score_exigencia, score_org, score_lideranca, severidade_str):
     elif pr_val <= 104: prob_str = "Baixa"
     elif pr_val <= 242: prob_str = "Média"
     
-    # Matriz oficial com 4 Níveis (Retornada à regra original do Zenit)
     matriz_risco = {
         "Alta": {"Leve": "Risco Elevado", "Média": "Risco Elevado", "Grave": "Risco Extremo", "Gravíssima": "Risco Extremo"},
         "Média": {"Leve": "Risco Moderado", "Média": "Risco Moderado", "Grave": "Risco Extremo", "Gravíssima": "Risco Extremo"},
@@ -310,12 +176,11 @@ def calcular_zenit(score_exigencia, score_org, score_lideranca, severidade_str):
     
     risco_final = matriz_risco.get(prob_str, {}).get(severidade_str, "Risco Indefinido")
     
-    # Textos de Aceitabilidade idênticos aos dropdowns do Zenit
     acoes = {
-        "Risco Extremo": {"criterio": "Inaceitável", "decisao": "Controlar", "aceitabilidade": "Eliminar"},
+        "Risco Extremo": {"criterio": "Inaceitável", "decisao": "Controlar", "aceitabilidade": "Eliminar (ou Reduzir)"},
         "Risco Elevado": {"criterio": "Inaceitável", "decisao": "Controlar", "aceitabilidade": "Reduzir"},
         "Risco Moderado": {"criterio": "Incerto", "decisao": "Reavaliar / Informação Adicional", "aceitabilidade": "Reduzir ao nível mais baixo possível"},
-        "Risco Baixo": {"criterio": "Aceitável", "decisao": "Manter o Nível", "aceitabilidade": "Manter o nível do risco"}
+        "Risco Baixo": {"criterio": "Aceitável", "decisao": "Manter o Nível", "aceitabilidade": "Nenhuma ação necessária"}
     }
     acao_sugerida = acoes.get(risco_final, {})
     
@@ -326,6 +191,7 @@ def calcular_zenit(score_exigencia, score_org, score_lideranca, severidade_str):
         "risco": risco_final,
         "acao": acao_sugerida
     }
+
 
 # --- COMPONENTES DE UI: FLUXO ANÔNIMO ---
 def renderizar_questionario_anonimo(empresa, campanha):
@@ -814,15 +680,6 @@ def admin_portal():
                 sel_c_id = c_dict[sel_c_id]
                 c_obj = db.query(Campanha).get(sel_c_id)
 
-                # CARREGANDO O DICIONÁRIO DE RISCOS PARA TODAS AS ABAS
-                dict_riscos = {}
-                if os.path.exists("dicionario_riscos.json"):
-                    try:
-                        with open("dicionario_riscos.json", "r", encoding="utf-8") as f:
-                            dict_riscos = json.load(f)
-                    except Exception as e:
-                        st.sidebar.error(f"Erro ao ler dicionario_riscos.json: {e}")
-
                 query_respostas_base = db.query(Funcionario.setor, Funcionario.funcao, Pergunta.dimensao, Pergunta.enunciado, Pergunta.inverter_pontuacao, Answer.resposta_texto, Funcionario.cpf, Funcionario.id, Pergunta.opcoes_json, Pergunta.ordem)\
                     .join(SurveySession, Answer.session_id == SurveySession.id)\
                     .join(Funcionario, SurveySession.funcionario_id == Funcionario.id)\
@@ -1036,32 +893,16 @@ def admin_portal():
                 if df_b.empty: 
                     st.warning("Aguardando primeiras respostas...")
                 else:
+                    # Carregar Dicionário de Riscos
+                    dict_riscos = {}
+                    if os.path.exists("dicionario_riscos.json"):
+                        try:
+                            with open("dicionario_riscos.json", "r", encoding="utf-8") as f:
+                                dict_riscos = json.load(f)
+                        except Exception as e:
+                            st.sidebar.error(f"Erro ao ler dicionario_riscos.json: {e}")
+
                     with tab_gabarito:
-                        st.markdown("""
-                        <style>
-                        @media print {
-                            @page { margin: 15mm !important; }
-                            body { zoom: 0.90 !important; color: black !important; }
-                            header, footer, [data-testid="stSidebar"], [data-testid="stHeader"], .stButton { display: none !important; }
-                            /* Esconde as caixas sanfonadas e botões na hora da impressão */
-                            h1, [data-testid="stExpander"], [data-testid="stSelectbox"], div[data-baseweb="tab-list"], .no-print { display: none !important; }
-                            .appview-container, .stApp, .main, .block-container { max-width: 100% !important; padding-top: 0 !important; margin-top: 0 !important; padding-bottom: 0 !important;}
-                            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color: black !important; opacity: 1 !important; filter: none !important; transition: none !important; }
-                            
-                            /* Mostra a nossa versão formatada contínua apenas na impressora */
-                            .print-gabarito-doc { display: block !important; }
-                        }
-                        @media screen {
-                            /* Esconde a versão formatada na tela normal do computador */
-                            .print-gabarito-doc { display: none !important; }
-                        }
-                        </style>
-                        """, unsafe_allow_html=True)
-
-                        if st.button("🖨️ Imprimir Gabarito Completo"):
-                            script = f"<script>setTimeout(function() {{ window.parent.print(); }}, 800);</script><div style='display:none;'>{time.time()}</div>"
-                            st.components.v1.html(script, height=0)
-
                         st.markdown(f"### 📑 Gabarito para o Software Zenit")
                         st.markdown(f"**Escopo Avaliado:** {txt_escopo_avaliado}")
                         st.info("💡 **Como usar:** Este gabarito filtra apenas os riscos reais (>= 50% de percepção). Selecione e copie os textos abaixo e cole diretamente no Zenit. (Dica: as caixas estão livres; você pode editar o texto aqui mesmo antes de copiar).")
@@ -1090,13 +931,6 @@ def admin_portal():
                         if riscos_acao.empty:
                             st.success("Nenhum risco atingiu o Nível de Ação para este setor. Todos os indicadores estão na Zona Verde.")
                         else:
-                            # Início do documento invisível (só aparece na impressão) sem recuos para evitar bug do Markdown
-                            html_print_gabarito = f'''
-<div class="print-gabarito-doc">
-<h2 style="text-align: center; color: #1560bd; border-bottom: 2px solid #ccc; padding-bottom: 10px;">GABARITO DE IMPORTAÇÃO - SISTEMA ZENIT</h2>
-<p style="text-align: center; font-size: 14px; margin-bottom: 30px;"><b>Escopo Avaliado:</b> {txt_escopo_avaliado}</p>
-'''
-
                             for idx, r in riscos_acao.iterrows():
                                 nome_risco = r['Dimensao']
                                 score_exato = r['Score']
@@ -1110,7 +944,6 @@ def admin_portal():
                                 
                                 calc_zenit = calcular_zenit(score_exato, score_org, score_lideranca, severidade)
                                 
-                                # --- PARTE 1: A CAIXA SANFONADA (FICA NA TELA, SOME NA IMPRESSÃO) ---
                                 with st.expander(f"⚠️ {nome_risco} (Score: {score_exato:.1f}%) - Previsto: {calc_zenit['risco']}"):
                                     c_col1, c_col2 = st.columns([2, 1])
                                     
@@ -1131,64 +964,27 @@ def admin_portal():
                                         st.markdown(f"**Probabilidade - NR09:** `Peso 1 (Não se aplica)`")
                                         st.divider()
                                         st.markdown("##### 🎯 Resultado Esperado (Zenit)")
-                                        st.markdown(f"**Probabilidade Final:** `{calc_zenit['prob_calc']} (PR: {calc_zenit['PR']})`")
                                         st.markdown(f"**Nível do Risco:** `{calc_zenit['risco']}`")
                                         st.markdown(f"**Critério:** `{calc_zenit['acao']['criterio']}`")
                                         st.markdown(f"**Decisão:** `{calc_zenit['acao']['decisao']}`")
                                         st.markdown(f"**Aceitabilidade:** `{calc_zenit['acao']['aceitabilidade']}`")
 
-                                # --- PARTE 2: O BLOCO HTML INVISÍVEL (APARECE SÓ NA IMPRESSÃO) sem espaços no começo ---
-                                html_print_gabarito += f'''
-<div style="margin-bottom: 25px; page-break-inside: avoid; border: 1px solid #000; padding: 15px; border-radius: 5px;">
-<h3 style="color: #000; margin-top: 0; border-bottom: 1px solid #ccc; padding-bottom: 5px;">⚠️ {nome_risco} <span style="font-size: 14px; font-weight: normal;">(Score: {score_exato:.1f}%)</span></h3>
-<table style="width: 100%; font-size: 12px; border-collapse: collapse;">
-<tr>
-<td style="width: 65%; vertical-align: top; padding-right: 15px;">
-<p style="margin: 0 0 5px 0;"><b>Perigo:</b> {nome_risco}</p>
-<p style="margin: 0 0 5px 0;"><b>Possíveis lesões (CIDs):</b> {dados_texto['cids']}</p>
-<p style="margin: 0 0 5px 0;"><b>Fontes ou Circunstâncias:</b><br>{dados_texto['fontes']}</p>
-<p style="margin: 0 0 5px 0;"><b>Plano de Ação / Medidas:</b><br>{dados_texto['plano']}</p>
-<p style="margin: 0 0 0 0;"><b>Forma de Acompanhamento:</b><br>{dados_texto['acompanhamento']}</p>
-</td>
-<td style="width: 35%; vertical-align: top; background-color: #f4f4f4; padding: 10px; border-left: 1px solid #ccc;">
-<h4 style="margin: 0 0 10px 0; color:#000; font-size: 13px;">Parâmetros Zenit</h4>
-<p style="margin: 0 0 3px 0;"><b>Severidade:</b> {severidade}</p>
-<p style="margin: 0 0 3px 0;"><b>Prob. NRs (RE):</b> Peso {calc_zenit['pesos']['RE']}</p>
-<p style="margin: 0 0 3px 0;"><b>Prob. Prevenção (ME):</b> Peso {calc_zenit['pesos']['ME']}</p>
-<p style="margin: 0 0 3px 0;"><b>Prob. Exigência (ET):</b> Peso {calc_zenit['pesos']['ET']}</p>
-<p style="margin: 0 0 10px 0;"><b>Prob. NR09 (PE):</b> Peso 1</p>
-<p style="margin: 0 0 3px 0; border-top: 1px solid #ccc; padding-top: 5px;"><b>Prob. Final:</b> {calc_zenit['prob_calc']} (PR: {calc_zenit['PR']})</p>
-<p style="margin: 0 0 3px 0;"><b>Nível do Risco:</b> {calc_zenit['risco']}</p>
-<p style="margin: 0 0 3px 0;"><b>Critério:</b> {calc_zenit['acao']['criterio']}</p>
-<p style="margin: 0 0 3px 0;"><b>Decisão:</b> {calc_zenit['acao']['decisao']}</p>
-<p style="margin: 0 0 0 0;"><b>Aceitabilidade:</b> {calc_zenit['acao']['aceitabilidade']}</p>
-</td>
-</tr>
-</table>
-</div>
-'''
-                            
-                            # Fecha a div principal da impressão
-                            html_print_gabarito += "</div>"
-                            # Injeta o código invisível na tela
-                            st.markdown(html_print_gabarito, unsafe_allow_html=True)
-
                     with tab_capa:
                         st.markdown("""
                         <style>
                         @media print {
-                            @page { margin: 15mm !important; }
+                            @page { size: A4 portrait !important; margin: 15mm !important; }
                             body { zoom: 1.0 !important; color: black !important; }
                             header, footer, [data-testid="stSidebar"], [data-testid="stHeader"], .stButton { display: none !important; }
                             h1, [data-testid="stExpander"], [data-testid="stSelectbox"], div[data-baseweb="tab-list"], .no-print { display: none !important; }
                             .appview-container, .stApp, .main, .block-container { max-width: 100% !important; padding-top: 0 !important; margin-top: 0 !important; padding-bottom: 0 !important;}
-                            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color: black !important; opacity: 1 !important; filter: none !important; transition: none !important; }
+                            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color: black !important; }
                         }
                         </style>
                         """, unsafe_allow_html=True)
                         
                         if st.button("🖨️ Imprimir Capa e Encerramento"):
-                            script = f"<script>setTimeout(function() {{ window.parent.print(); }}, 800);</script><div style='display:none;'>{time.time()}</div>"
+                            script = f"<script>window.parent.print();</script><div style='display:none;'>{time.time()}</div>"
                             st.components.v1.html(script, height=0)
                             
                         nome_responsavel = c_obj.empresa.nome_responsavel if c_obj.empresa.nome_responsavel else "Nome do Responsável Técnico"
@@ -1236,20 +1032,123 @@ def admin_portal():
                         st.markdown("""
                         <style>
                         @media print {
-                            @page { margin: 10mm !important; }
+                            @page { size: A4 portrait !important; margin: 10mm !important; }
                             body { zoom: 0.85 !important; }
                             header, footer, [data-testid="stSidebar"], [data-testid="stHeader"], .stButton { display: none !important; }
                             h1, [data-testid="stExpander"], [data-testid="stSelectbox"], div[data-baseweb="tab-list"], .no-print { display: none !important; }
                             .appview-container, .stApp, .main, .block-container { max-width: 100% !important; padding-top: 0 !important; margin-top: 0 !important; padding-bottom: 0 !important;}
                             div[data-testid="stVerticalBlock"] > div:first-child { padding-top: 0 !important; }
-                            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; opacity: 1 !important; filter: none !important; transition: none !important; }
+                            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                         }
                         </style>
                         """, unsafe_allow_html=True)
 
                         if st.button("🖨️ Imprimir Relatório Classificatório"):
-                            script = f"<script>setTimeout(function() {{ window.parent.print(); }}, 800);</script><div style='display:none;'>{time.time()}</div>"
+                            script = f"<script>window.parent.print();</script><div style='display:none;'>{time.time()}</div>"
                             st.components.v1.html(script, height=0)
+
+                        DICT_FATORES = {
+                            "Exigências quantitativas": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Reorganizar tarefas e redistribuir carga de trabalho entre a equipe."},
+                            "Ritmo de trabalho acelerado": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Rever prazos e fluxos operacionais; incluir pausas programadas."},
+                            "Ritmo de trabalho": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Rever prazos e fluxos operacionais; incluir pausas programadas."},
+                            "Altas exigências cognitivas": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Fornecer suporte técnico, treinamentos e ferramentas que facilitem decisões."},
+                            "Exigências cognitivas": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Fornecer suporte técnico, treinamentos e ferramentas que facilitem decisões."},
+                            "Altas exigências emocionais": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Criar espaços de escuta ativa e oferecer suporte psicológico contínuo."},
+                            "Exigências emocionais": {"macro": "EL", "macro_nome": "EXIGÊNCIAS LABORAIS - EL", "acao": "Criar espaços de escuta ativa e oferecer suporte psicológico contínuo."},
+                            "Pouca influência no trabalho": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Ampliar a participação dos colaboradores em decisões sobre suas atividades."},
+                            "Influência no trabalho": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Ampliar a participação dos colaboradores em decisões sobre suas atividades."},
+                            "Baixa possibilidades de desenvolvimento": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Estabelecer plano de carreira e treinamentos periódicos."},
+                            "Possibilidades de desenvolvimento": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Estabelecer plano de carreira e treinamentos periódicos."},
+                            "Pouca previsibilidade de rotina": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Garantir maior clareza na agenda de tarefas e planejamento de demandas."},
+                            "Previsibilidade": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Garantir maior clareza na agenda de tarefas e planejamento de demandas."},
+                            "Pouca transparência do papel laboral desempenhado": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Atualizar e comunicar com clareza as descrições de cargos e responsabilidades."},
+                            "Transparência do papel laboral desempenhado": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Atualizar e comunicar com clareza as descrições de cargos e responsabilidades."},
+                            "Déficit nas recompensas": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Implementar sistema de reconhecimento por desempenho (não apenas financeiro)."},
+                            "Recompensas": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Implementar sistema de reconhecimento por desempenho (não apenas financeiro)."},
+                            "Conflitos laborais": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Criar um comitê de mediação de conflitos e promover treinamentos em comunicação."},
+                            "Pouco apoio social de colegas": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Promover integração por meio de dinâmicas de grupo e projetos colaborativos."},
+                            "Apoio social de colegas": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Promover integração por meio de dinâmicas de grupo e projetos colaborativos."},
+                            "Pouco apoio social dos superiores": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Capacitar líderes em gestão humanizada e empática."},
+                            "Apoio social de superiores": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Capacitar líderes em gestão humanizada e empática."},
+                            "Pouca cooperação no trabalho": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Estimular o trabalho em equipe com metas compartilhadas."},
+                            "Comunidade social no trabalho": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Estimular o trabalho em equipe com metas compartilhadas."},
+                            "Má qualidade da liderança": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Realizar avaliação dos líderes com feedback 360° e programa de desenvolvimento de líderes."},
+                            "Qualidade de liderança": {"macro": "RSL", "macro_nome": "RELAÇÕES SOCIAIS E LIDERANÇA - RSL", "acao": "Realizar avaliação dos líderes com feedback 360° e programa de desenvolvimento de líderes."},
+                            "Baixa confiança entre pares": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Estimular valores como ética e respeito; aplicar códigos de conduta."},
+                            "Confiança horizontal": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Estimular valores como ética e respeito; aplicar códigos de conduta."},
+                            "Baixa confiança na gerência": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Aumentar a transparência das decisões da gestão e comunicar-se melhor com a equipe."},
+                            "Confiança vertical": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Aumentar a transparência das decisões da gestão e comunicar-se melhor com a equipe."},
+                            "Injustiça e desrespeito": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Criar políticas organizacionais claras de justiça e respeito no ambiente de trabalho."},
+                            "Justiça e respeito": {"macro": "VLT", "macro_nome": "VALORES NO LOCAL DE TRABALHO - VLT", "acao": "Criar políticas organizacionais claras de justiça e respeito no ambiente de trabalho."},
+                            "Baixa autoeficácia": {"macro": "P", "macro_nome": "PERSONALIDADE - P", "acao": "Oferecer feedbacks positivos e oportunidades de desenvolvimento individual."},
+                            "Auto-eficácia": {"macro": "P", "macro_nome": "PERSONALIDADE - P", "acao": "Oferecer feedbacks positivos e oportunidades de desenvolvimento individual."},
+                            "Trabalho sem significado": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Realinhar as tarefas ao propósito organizacional e envolver os colaboradores na missão."},
+                            "Significado do trabalho": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Realinhar as tarefas ao propósito organizacional e envolver os colaboradores na missão."},
+                            "Pouco compromisso face ao local de trabalho": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Fortalecer o vínculo organizacional com ações de valorização e pertencimento."},
+                            "Compromisso face ao local de trabalho": {"macro": "OTC", "macro_nome": "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC", "acao": "Fortalecer o vínculo organizacional com ações de valorização e pertencimento."},
+                            "Insatisfação no trabalho": {"macro": "ITI", "macro_nome": "INTERFACE TRABALHO-INDIVÍDUO - ITI", "acao": "Aplicar pesquisas de clima e agir sobre os pontos críticos com agilidade."},
+                            "Satisfação no trabalho": {"macro": "ITI", "macro_nome": "INTERFACE TRABALHO-INDIVÍDUO - ITI", "acao": "Aplicar pesquisas de clima e agir sobre os pontos críticos com agilidade."},
+                            "Insegurança laboral": {"macro": "ITI", "macro_nome": "INTERFACE TRABALHO-INDIVÍDUO - ITI", "acao": "Garantir estabilidade por meio de contratos claros e comunicação sobre o futuro."},
+                            "Falta de saúde geral": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Criar programas de saúde física, mental e preventiva com incentivos à adesão."},
+                            "Saúde Geral": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Criar programas de saúde física, mental e preventiva com incentivos à adesão."},
+                            "Conflito trabalho/ família": {"macro": "ITI", "macro_nome": "INTERFACE TRABALHO-INDIVÍDUO - ITI", "acao": "Adotar políticas de flexibilidade, como horários adaptáveis ou home office parcial."},
+                            "Conflito trabalho/família": {"macro": "ITI", "macro_nome": "INTERFACE TRABALHO-INDIVÍDUO - ITI", "acao": "Adotar políticas de flexibilidade, como horários adaptáveis ou home office parcial."},
+                            "Problemas em dormir": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Promover campanhas de higiene do sono e equilíbrio jornada/descanso."},
+                            "Burnout": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Reduzir carga de trabalho, flexibilizar horários e investir em suporte emocional."},
+                            "Estresse": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Implantar programas de gestão do estresse, estratégias de copyng, inteligência emocional (mindfulness, ginástica laboral)."},
+                            "Stress": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Implantar programas de gestão do estresse, estratégias de copyng, inteligência emocional (mindfulness, ginástica laboral)."},
+                            "Sintomas depressivos": {"macro": "SBE", "macro_nome": "SAÚDE E BEM-ESTAR - SBE", "acao": "Disponibilizar atendimento psicológico e acompanhar com RH e SESMT."},
+                            "Comportamentos ofensivos": {"macro": "CO", "macro_nome": "COMPORTAMENTOS OFENSIVOS - CO", "acao": "Criar canais de denúncia seguros e implementar políticas de tolerância zero para assédio."}
+                        }
+
+                        OBS_MACRO = {
+                            "EXIGÊNCIAS LABORAIS - EL": {
+                                "FAVORÁVEL": "Carga de trabalho adequada e ritmo equilibrado.",
+                                "MODERADO": "Carga de trabalho no limite; necessário monitorar e balancear.",
+                                "RISCO": "Sobrecarga de trabalho identificada, necessidade de revisão imediata."
+                            },
+                            "ORGANIZAÇÃO DO TRABALHO E CONTEÚDO - OTC": {
+                                "FAVORÁVEL": "Boa autonomia e uso de habilidades no trabalho.",
+                                "MODERADO": "Autonomia parcial; oportunidades para maior engajamento.",
+                                "RISCO": "Pouco controle sobre tarefas e decisões; desmotivação latente."
+                            },
+                            "RELAÇÕES SOCIAIS E LIDERANÇA - RSL": {
+                                "FAVORÁVEL": "Boa comunicação, papéis claros e suporte da liderança.",
+                                "MODERADO": "Algumas falhas de comunicação e clareza de papéis.",
+                                "RISCO": "Conflitos interpessoais ou lacunas significativas na liderança."
+                            },
+                            "INTERFACE TRABALHO-INDIVÍDUO - ITI": {
+                                "FAVORÁVEL": "Bom equilíbrio entre vida pessoal e profissional.",
+                                "MODERADO": "Algumas interferências entre trabalho e vida pessoal.",
+                                "RISCO": "Forte desequilíbrio, trabalho afetando negativamente a vida pessoal."
+                            },
+                            "VALORES NO LOCAL DE TRABALHO - VLT": {
+                                "FAVORÁVEL": "Ambiente de respeito, ética e confiança.",
+                                "MODERADO": "Confiabilidade razoável, com pequenas tensões percebidas.",
+                                "RISCO": "Falta de confiança, desrespeito ou percepção de injustiça."
+                            },
+                            "PERSONALIDADE - P": {
+                                "FAVORÁVEL": "Alta autoeficácia e perspectivas positivas.",
+                                "MODERADO": "Autoeficácia moderada; espaço para fortalecimento individual.",
+                                "RISCO": "Baixa autoeficácia e insegurança; necessidade de suporte."
+                            },
+                            "SAÚDE E BEM-ESTAR - SBE": {
+                                "FAVORÁVEL": "Bem-estar físico e emocional preservados; sono adequado.",
+                                "MODERADO": "Sinais leves de fadiga, estresse ou sono irregular.",
+                                "RISCO": "Presença de exaustão, estresse alto ou sintomas de adoecimento."
+                            },
+                            "COMPORTAMENTOS OFENSIVOS - CO": {
+                                "FAVORÁVEL": "Ambiente respeitoso, sem relatos de ofensas.",
+                                "MODERADO": "Ocorrências pontuais de desrespeito ou conflitos.",
+                                "RISCO": "Relatos críticos de assédio ou violência; tolerância zero."
+                            }
+                        }
+
+                        def classificar_risco_novo(v):
+                            if pd.isna(v): return 'N/A', 'Monitorar'
+                            if v <= 49.99: return 'FAVORÁVEL', 'Monitorar'
+                            if v <= 74.99: return 'MODERADO', 'Planejar ações corretivas'
+                            return 'RISCO', 'Intervenção imediata'
 
                         def build_html_table(df, headers, widths):
                             html = "<table style='width: 100%; border-collapse: collapse; margin-bottom: 10px; color: black; font-size: 9px; page-break-inside: avoid;'>"
@@ -1358,7 +1257,7 @@ def admin_portal():
                             st.markdown(build_html_table(df_tabela2_print, ['RESULTADO - DIMENSÕES COPSOQ-II', 'MÉDIA', 'CLASSIFICAÇÃO', 'RECOMENDAÇÕES'], ['45%', '10%', '15%', '30%']), unsafe_allow_html=True)
 
                         st.markdown("""
-                        <h3 style='color: black; margin-top: 30px; font-size: 16px;'>Definição de cada dimensão macro avaliada:</h3>
+                        <h3 style='color: black; margin-top: 30px; font-size: 16px;'>Definição de cada dimensão avaliada:</h3>
                         <p style='font-size: 12px; color: black;'>
                         <b>Exigências laborais</b> verificam a carga física e mental do trabalho, como pressão por prazos, volume de tarefas e demandas emocionais.<br>
                         <b>Organização do trabalho e conteúdo</b> analisam a clareza das tarefas, autonomia, variedade e previsibilidade no trabalho.<br>
@@ -1422,27 +1321,13 @@ def admin_portal():
                         - Existência e eficácia das medidas de controle atualmente adotadas.</p>
                         <p style='font-size: 12px; color: black;'>Essa análise permitirá classificar os riscos, definir o nível de prioridade das ações e integrar os riscos psicossociais de forma adequada ao Programa de Gerenciamento de Riscos (PGR).</p>
                         """, unsafe_allow_html=True)
-                        
-                        # --- GLOSSÁRIO DINÂMICO ---
-                        riscos_glossario = fatores_scores[fatores_scores['Score'] >= 50.0].sort_values(by="Dimensao")
-                        if not riscos_glossario.empty:
-                            st.markdown("<h3 style='color: black; margin-top: 30px; font-size: 16px; page-break-before: always;'>GLOSSÁRIO TÉCNICO DE RISCOS ESPECÍFICOS IDENTIFICADOS</h3>", unsafe_allow_html=True)
-                            st.markdown("<p style='font-size: 12px; color: black;'>Abaixo constam as definições técnicas exclusivas dos fatores de risco que atingiram o Nível de Ação (Moderado ou Crítico) no presente escopo avaliado, visando melhor compreensão das intervenções recomendadas na matriz do PGR:</p>", unsafe_allow_html=True)
-                            
-                            glossario_html = "<ul style='font-size: 12px; color: black; text-align: justify;'>"
-                            for _, row in riscos_glossario.iterrows():
-                                dim_nome = row['Dimensao']
-                                def_risco = dict_riscos.get(dim_nome, {}).get("definicao", "Definição não mapeada.")
-                                glossario_html += f"<li style='margin-bottom: 8px;'><b>{dim_nome}:</b> {def_risco}</li>"
-                            glossario_html += "</ul>"
-                            
-                            st.markdown(glossario_html, unsafe_allow_html=True)
 
                     with tab_estat:
                         st.markdown("""
                         <style>
                         @media print {
-                            @page { margin: 15mm !important; }
+                            /* FORÇA O RETRATO (PORTRAIT) NESTA ABA */
+                            @page { size: A4 portrait !important; margin: 15mm !important; }
                             body { zoom: 1.0 !important; }
                             header, footer, [data-testid="stSidebar"], [data-testid="stHeader"], .stButton { display: none !important; }
                             h1, [data-testid="stExpander"], [data-testid="stSelectbox"], div[data-baseweb="tab-list"], .no-print { display: none !important; }
@@ -1450,7 +1335,7 @@ def admin_portal():
                                 max-width: 100% !important; padding-top: 0 !important; margin-top: 0 !important; padding-bottom: 0 !important;
                             }
                             div[data-testid="stVerticalBlock"] > div:first-child { padding-top: 0 !important; }
-                            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; opacity: 1 !important; filter: none !important; transition: none !important; }
+                            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                             .barra-bg { background-color: #e6e6e6 !important; }
                             .barra-fill { background-color: #1560bd !important; }
                         }
@@ -1458,7 +1343,7 @@ def admin_portal():
                         """, unsafe_allow_html=True)
 
                         if st.button("🖨️ Imprimir Estatísticas"):
-                            script = f"<script>setTimeout(function() {{ window.parent.print(); }}, 800);</script><div style='display:none;'>{time.time()}</div>"
+                            script = f"<script>window.parent.print();</script><div style='display:none;'>{time.time()}</div>"
                             st.components.v1.html(script, height=0)
 
                         total_participantes = df_raw['FuncID'].nunique() if not df_raw.empty else 0
@@ -1513,7 +1398,8 @@ def admin_portal():
                         st.markdown("""
                         <style>
                         @media print {
-                            @page { margin: 10mm !important; }
+                            /* FORÇA A PAISAGEM (LANDSCAPE) NESTA ABA */
+                            @page { size: A4 landscape !important; margin: 10mm !important; }
                             body { zoom: 1.0 !important; }
                             header, footer, [data-testid="stSidebar"], [data-testid="stHeader"], .stButton { display: none !important; }
                             h1, [data-testid="stExpander"], [data-testid="stSelectbox"], div[data-baseweb="tab-list"], .no-print { display: none !important; }
@@ -1521,7 +1407,7 @@ def admin_portal():
                                 max-width: 100% !important; padding-top: 0 !important; margin-top: 0 !important; padding-bottom: 0 !important;
                             }
                             div[data-testid="stVerticalBlock"] > div:first-child { padding-top: 0 !important; }
-                            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; opacity: 1 !important; filter: none !important; transition: none !important; }
+                            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                             h2, h3 { color: black !important; page-break-after: avoid !important; break-after: avoid !important; }
                             table { color: black !important; }
                             [data-testid="stTable"], table, th, td, [data-testid="stPlotlyChart"] { opacity: 1 !important; }
@@ -1535,7 +1421,7 @@ def admin_portal():
                         """, unsafe_allow_html=True)
 
                         if st.button("🖨️ Imprimir Dashboard Gráfico"):
-                            script = f"<script>setTimeout(function() {{ window.parent.print(); }}, 800);</script><div style='display:none;'>{time.time()}</div>"
+                            script = f"<script>window.parent.print();</script><div style='display:none;'>{time.time()}</div>"
                             st.components.v1.html(script, height=0)
 
                         st.markdown("<div style='page-break-before: always;'></div>", unsafe_allow_html=True)
@@ -1616,19 +1502,19 @@ def admin_portal():
                     st.markdown("""
                     <style>
                     @media print {
-                        @page { margin: 15mm !important; }
+                        @page { size: A4 portrait !important; margin: 15mm !important; }
                         body { zoom: 0.9 !important; color: black !important; }
                         header, footer, [data-testid="stSidebar"], [data-testid="stHeader"], .stButton { display: none !important; }
                         h1, [data-testid="stExpander"], [data-testid="stSelectbox"], div[data-baseweb="tab-list"], .no-print { display: none !important; }
                         .appview-container, .stApp, .main, .block-container { max-width: 100% !important; padding-top: 0 !important; margin-top: 0 !important; padding-bottom: 0 !important;}
-                        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color: black !important; opacity: 1 !important; filter: none !important; transition: none !important; }
+                        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color: black !important; }
                         table { font-size: 11px !important; }
                     }
                     </style>
                     """, unsafe_allow_html=True)
 
                     if st.button("🖨️ Imprimir Metodologia Técnica"):
-                        script = f"<script>setTimeout(function() {{ window.parent.print(); }}, 800);</script><div style='display:none;'>{time.time()}</div>"
+                        script = f"<script>window.parent.print();</script><div style='display:none;'>{time.time()}</div>"
                         st.components.v1.html(script, height=0)
 
                     st.markdown(f"""
