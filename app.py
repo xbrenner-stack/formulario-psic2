@@ -1221,7 +1221,7 @@ def admin_portal():
                             <p style="text-align: justify; font-size: 14px; line-height: 1.6;">
                             O presente relatório técnico apresenta e consolida os resultados do diagnóstico de riscos psicossociais realizado na empresa <b>{contexto}</b>, obtidos por meio da aplicação do inventário estruturado COPSOQ-II Versão Média.
                             <br><br>
-                            O levantamento seguiu rigorosos critérios metodológicos, estatísticos e de sigilo. Os dados aqui expostos fornecem os subsídios técnicos necessários para a etapa de identificação de perigos e avaliação de riscos do Programa de Gerenciamento de Riscos (PGR), em conformidade com a NR-01. As medidas preventivas sugeridas devem ser validadas, priorizadas e integradas ao plano de ação da organização sob a coordenação do Serviço Especializado em Engenharia de Segurança e em Medicina do Trabalho (SESMT) ou responsável de SST.
+                            O levantamento seguiu rigorosos critérios metodológicos, estatísticos e de sigilo. Os dados aqui expostos fornecem os subsídios técnicos necessários para a etapa de identificação de perigos e avaliação de riscos do Programa de Gerenciamento de Riscos (PGR), em conformidade com a NR-01. As medidas preventivas sugeridas devem ser validadas, priorizadas e integradas ao plano de ação do PGR da organização.
                             </p>
                             <br><br><br><br><br>
                             <p>____________________________________________________________________</p>
