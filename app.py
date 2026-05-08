@@ -633,22 +633,55 @@ def admin_portal():
 
     db = get_db()
     empresas_base = db.query(Empresa).order_by(Empresa.nome_empresa.asc()).all()
-    lista_contextos = ["[Administração Geral]"] + [e.nome_empresa for e in empresas_base]
-    contexto = st.sidebar.selectbox("🏢 Contexto da Empresa", lista_contextos)
     
-    if contexto == "[Administração Geral]":
-        menu = st.sidebar.radio("Navegação", ["Dashboard Global", "Gestão de Empresas", "Bancos de Questionários", "Sair"])
-    else:
-        empresa_selecionada = next(e for e in empresas_base if e.nome_empresa == contexto)
-        emp_id = empresa_selecionada.id
-        menu = st.sidebar.radio(f"Navegação: {contexto}", ["👥 Funcionários", "📊 Campanhas e Resultados", "Sair"])
+    emp_id_selecionado = st.session_state.get('emp_id_selecionado', None)
 
-    if menu == "Sair":
-        st.session_state.pop('admin_logged_in')
-        st.rerun()
+    if emp_id_selecionado is None:
+        menu = st.sidebar.radio("Navegação Global", ["🏢 Hub de Empresas", "📈 Dashboard Global", "⚙️ Gestão de Empresas", "📚 Bancos de Questionários", "🚪 Sair"])
+        
+        if menu == "🚪 Sair":
+            st.session_state.pop('admin_logged_in', None)
+            st.rerun()
+            
+        elif menu == "🏢 Hub de Empresas":
+            st.title("🏢 Hub de Empresas")
+            st.write("Pesquise a empresa ou clique diretamente no nome abaixo para acessar o painel.")
+            
+            lista_nomes = ["-- Digite para buscar --"] + [e.nome_empresa for e in empresas_base]
+            busca_rapida = st.selectbox("🔍 Busca Rápida:", options=lista_nomes)
+            
+            if busca_rapida != "-- Digite para buscar --":
+                emp_encontrada = next((e for e in empresas_base if e.nome_empresa == busca_rapida), None)
+                if emp_encontrada:
+                    st.session_state['emp_id_selecionado'] = emp_encontrada.id
+                    st.rerun()
+                    
+            st.divider()
+            
+            st.markdown("### 📋 Lista de Empresas")
+            if not empresas_base:
+                st.info("Nenhuma empresa cadastrada ainda.")
+            else:
+                col1, col2, col3 = st.columns([3, 1, 1])
+                col1.markdown("**NOME DA EMPRESA**")
+                col2.markdown("**VIDAS (FUNC.)**")
+                col3.markdown("**CAMPANHAS ATIVAS**")
+                st.markdown("<hr style='margin-top: 0px; margin-bottom: 10px;'>", unsafe_allow_html=True)
+                
+                for e in empresas_base:
+                    c1, c2, c3 = st.columns([3, 1, 1])
+                    with c1:
+                        if st.button(f"🏢 {e.nome_empresa}", key=f"btn_hub_{e.id}", use_container_width=True):
+                            st.session_state['emp_id_selecionado'] = e.id
+                            st.rerun()
+                    with c2:
+                        num_funcs = db.query(Funcionario).filter_by(empresa_id=e.id).count()
+                        st.markdown(f"<div style='margin-top: 8px; font-size: 15px;'>{num_funcs}</div>", unsafe_allow_html=True)
+                    with c3:
+                        campanhas_ativas = db.query(Campanha).filter_by(empresa_id=e.id, status="Ativa").count()
+                        st.markdown(f"<div style='margin-top: 8px; font-size: 15px;'>{campanhas_ativas}</div>", unsafe_allow_html=True)
 
-    if contexto == "[Administração Geral]":
-        if menu == "Dashboard Global":
+        elif menu == "📈 Dashboard Global":
             st.title("📊 Painel de Engajamento Global")
             c1, c2 = st.columns(2)
             campanhas_all = db.query(Campanha).all()
@@ -676,7 +709,7 @@ def admin_portal():
                 st.plotly_chart(px.pie(df, names='Status', color='Status', color_discrete_map={'Concluído':'#22c55e', 'Pendente':'#ef4444'}), use_container_width=True)
             else: st.info("Nenhum dado global disponível.")
 
-        elif menu == "Gestão de Empresas":
+        elif menu == "⚙️ Gestão de Empresas":
             st.title("🏢 Gestão de Empresas")
             with st.expander("➕ Cadastrar Nova Empresa"):
                 with st.form("new_company"):
@@ -716,7 +749,7 @@ def admin_portal():
                         db.add(Empresa(nome_empresa=str(row['Nome']), codigo_empresa=str(row['Código']), link_forms=str(row['Link']), nome_responsavel=str(row.get('Responsável', '')), registro_responsavel=str(row.get('Registro', ''))))
                 db.commit(); st.success("Empresas atualizadas!"); st.rerun()
 
-        elif menu == "Bancos de Questionários":
+        elif menu == "📚 Bancos de Questionários":
             st.title("📚 Bancos de Questionários")
             with st.expander("➕ Criar Novo Questionário"):
                 with st.form("new_q"):
@@ -784,7 +817,30 @@ def admin_portal():
                                     db.commit(); st.rerun()
 
     else:
-        if menu == "👥 Funcionários":
+        empresa_selecionada = db.query(Empresa).get(emp_id_selecionado)
+        if not empresa_selecionada:
+            st.session_state.pop('emp_id_selecionado', None)
+            st.rerun()
+            
+        contexto = empresa_selecionada.nome_empresa
+        emp_id = empresa_selecionada.id
+        
+        st.sidebar.markdown(f"### 🏢 {contexto}")
+        
+        if st.sidebar.button("⬅️ Voltar para Visão Geral", use_container_width=True, type="primary"):
+            st.session_state.pop('emp_id_selecionado', None)
+            st.rerun()
+            
+        st.sidebar.divider()
+        
+        menu = st.sidebar.radio("Navegação do Cliente", ["👥 Funcionários", "📊 Campanhas e Resultados", "🚪 Sair"])
+        
+        if menu == "🚪 Sair":
+            st.session_state.pop('admin_logged_in', None)
+            st.session_state.pop('emp_id_selecionado', None)
+            st.rerun()
+            
+        elif menu == "👥 Funcionários":
             st.title(f"👥 Funcionários: {contexto}")
             with st.expander("📥 Importar Lista"):
                 df_modelo = pd.DataFrame(columns=['Nome', 'CPF', 'Nascimento', 'Setor', 'Função'])
