@@ -991,8 +991,8 @@ def admin_portal():
                     st.warning("🔬 **MODO SIMULAÇÃO ATIVO:** Os gráficos e relatórios abaixo refletem os dados alterados na aba 'Dados Brutos'. Desligue a chave na aba para retornar aos dados reais do banco.")
 
                 tab_capa, tab_exec, tab_classif, tab_estat, tab_metodo, tab_bruto, tab_gabarito, tab_ger = st.tabs([
-                    "📑 Capa e Encerramento", "📊 Dashboard Gráfico", "📋 Relatório Classificatório", 
-                    "📈 Estatísticas", "📖 Metodologia", "📥 Dados Brutos", "📑 Gabarito PGR (Zenit)", "⚙️ Gerenciar"
+                    "📑 Capa", "📊 Dashboard", "📋 Classificatório", 
+                    "📈 Estatísticas", "📖 Metodologia", "📥 Dados", "📑 Gabarito", "⚙️ Gerenciar"
                 ])
                 
                 with tab_ger:
