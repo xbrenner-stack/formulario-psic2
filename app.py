@@ -337,27 +337,34 @@ def renderizar_questionario_anonimo(empresa, campanha):
     if 'tentou_enviar' not in st.session_state: 
         st.session_state.tentou_enviar = False
 
-    st.title(f"📋 {campanha.questionario.nome}")
+    st.title(f"🏢 {empresa.nome_empresa}")
+    st.subheader(f"📋 {campanha.questionario.nome}")
     st.info("🔒 **Modo Seguro e Anônimo:** Esta pesquisa não coleta nenhum dado de identificação (como CPF ou Nome).")
     
     if campanha.questionario.descricao:
         st.write(campanha.questionario.descricao)
 
     db = get_db()
-    setores_db = [s[0] for s in db.query(Funcionario.setor).filter_by(empresa_id=empresa.id).distinct().all() if s[0] and str(s[0]).strip()]
-    setores = sorted(setores_db) if setores_db else ["Não Informado"]
 
-    st.markdown("### Passo 1: Informações do seu Setor")
+    st.markdown("### Passo 1: Informações Profissionais")
     c1, c2 = st.columns(2)
-    sel_setor = c1.selectbox("Selecione seu Setor", options=setores, index=None)
     
-    if sel_setor:
-        funcoes_db = [f[0] for f in db.query(Funcionario.funcao).filter_by(empresa_id=empresa.id, setor=sel_setor).distinct().all() if f[0] and str(f[0]).strip()]
-        funcoes = sorted(funcoes_db) if funcoes_db else ["Não Informado"]
-        sel_funcao = c2.selectbox("Selecione sua Função", options=funcoes, index=None)
+    funcoes_db = [f[0] for f in db.query(Funcionario.funcao).filter_by(empresa_id=empresa.id).distinct().all() if f[0] and str(f[0]).strip()]
+    funcoes = sorted(funcoes_db) if funcoes_db else ["Não Informado"]
+    
+    sel_funcao = c1.selectbox("Selecione sua Função", options=funcoes, index=None)
+    
+    if sel_funcao:
+        setores_db = [s[0] for s in db.query(Funcionario.setor).filter_by(empresa_id=empresa.id, funcao=sel_funcao).distinct().all() if s[0] and str(s[0]).strip()]
+        setores = sorted(setores_db) if setores_db else ["Não Informado"]
+        
+        if len(setores) == 1:
+            sel_setor = c2.selectbox("Selecione seu Setor", options=setores, index=0, disabled=True)
+        else:
+            sel_setor = c2.selectbox("Selecione seu Setor", options=setores, index=None)
     else:
-        c2.selectbox("Selecione sua Função", options=["Selecione um Setor primeiro"], disabled=True)
-        sel_funcao = None
+        c2.selectbox("Selecione seu Setor", options=["Selecione sua Função primeiro"], disabled=True)
+        sel_setor = None
 
     st.divider()
 
@@ -456,24 +463,46 @@ def renderizar_questionario_anonimo(empresa, campanha):
             finally:
                 db.close()
 
+# --- COMPONENTES DE UI: FLUXO GOOGLE FORMS ---
+def renderizar_questionario_google(empresa, campanha):
+    st.title(f"🏢 {empresa.nome_empresa}")
+    st.subheader(f"📋 {campanha.questionario.nome}")
+    st.info("ℹ️ **Modo Externo:** Responda ao questionário abaixo com sinceridade.")
+    
+    if campanha.questionario.descricao:
+        st.write(campanha.questionario.descricao)
+    
+    link = str(empresa.link_forms).strip()
+    if not link:
+        st.error("⚠️ O link do Google Forms não foi configurado para esta empresa. Por favor, contate o administrador.")
+        return
+    
+    # Adiciona o parâmetro embedded se for link do docs.google.com e não tiver
+    if "docs.google.com/forms" in link and "embedded=true" not in link:
+        if "?" in link:
+            link += "&embedded=true"
+        else:
+            link += "?embedded=true"
+            
+    st.markdown(f'<iframe src="{link}" width="100%" height="800" frameborder="0" marginheight="0" marginwidth="0">Carregando…</iframe>', unsafe_allow_html=True)
+    st.divider()
+    st.caption("As respostas deste formulário serão processadas pelo sistema externo da empresa.")
+
 # --- COMPONENTES DE UI: FLUXO COM CPF ---
 def login_colaborador(empresa):
     st.title(f"Acesso: {empresa.nome_empresa}")
-    st.info("Valide seus dados para acessar o formulário restrito.")
+    st.info("Valide seu CPF para acessar o formulário restrito.")
     
     with st.form("login_worker"):
         cpf_input = st.text_input("CPF (apenas números)")
-        data_nasc_input = st.date_input("Data de Nascimento", value=None, min_value=datetime(1940, 1, 1), format="DD/MM/YYYY")
         
         if st.form_submit_button("ENTRAR"):
             db = get_db()
             cpf_clean = limpar_cpf(cpf_input)
-            data_str = processar_data_robusta(data_nasc_input)
             
             user = db.query(Funcionario).filter(
                 Funcionario.empresa_id == empresa.id, 
-                Funcionario.cpf == cpf_clean, 
-                Funcionario.data_nasc == data_str
+                Funcionario.cpf == cpf_clean
             ).first()
             
             if user:
@@ -486,13 +515,14 @@ def login_colaborador(empresa):
                     st.session_state['logged_user_id'] = user.id
                     st.rerun()
             else:
-                st.error("Dados não encontrados. Verifique seu CPF e Data de Nascimento.")
+                st.error("CPF não encontrado na base de dados desta empresa.")
 
 def renderizar_questionario_dinamico(user, campanha):
     if 'tentou_enviar' not in st.session_state: 
         st.session_state.tentou_enviar = False
 
-    st.title(f"📋 {campanha.questionario.nome}")
+    st.title(f"🏢 {campanha.empresa.nome_empresa}")
+    st.subheader(f"📋 {campanha.questionario.nome}")
     if campanha.questionario.descricao:
         st.info(campanha.questionario.descricao)
     
@@ -757,6 +787,16 @@ def admin_portal():
         if menu == "👥 Funcionários":
             st.title(f"👥 Funcionários: {contexto}")
             with st.expander("📥 Importar Lista"):
+                df_modelo = pd.DataFrame(columns=['Nome', 'CPF', 'Nascimento', 'Setor', 'Função'])
+                buffer = io.BytesIO()
+                df_modelo.to_excel(buffer, index=False)
+                st.download_button(
+                    label="🔽 Baixar Planilha Modelo (Excel)",
+                    data=buffer.getvalue(),
+                    file_name="modelo_importacao_funcionarios.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+                
                 up = st.file_uploader("Excel/CSV", type=['csv', 'xlsx'])
                 if up:
                     df_up = pd.read_csv(up) if up.name.endswith('.csv') else pd.read_excel(up)
@@ -798,20 +838,36 @@ def admin_portal():
                     qs = {q.nome: q.id for q in db.query(Questionario).all()}
                     sel_q = st.selectbox("Questionário Base", list(qs.keys()))
                     n_c = st.text_input("Nome da Campanha")
-                    tipo_c = st.radio("Modo de Coleta da Pesquisa", ["Tradicional (Exige Validação de CPF e Nasc.)", "Link Aberto (100% Anônimo via Dropdown)"])
+                    tipo_c = st.radio("Modo de Coleta da Pesquisa", ["Tradicional (Exige Validação de CPF e Nasc.)", "Link Aberto (100% Anônimo via Dropdown)", "Google Forms (Formulário Externo Embutido)"])
                     
                     if st.form_submit_button("Iniciar Campanha"):
                         db.query(Campanha).filter_by(empresa_id=emp_id, status="Ativa").update({"status": "Encerrada"})
-                        t_val = "cpf" if "Tradicional" in tipo_c else "anonimo"
-                        db.add(Campanha(empresa_id=emp_id, questionario_id=qs[sel_q], nome_campanha=n_c, tipo_coleta=t_val))
-                        db.commit(); st.success("Campanha Iniciada!"); st.rerun()
+                        t_val = "cpf"
+                        if "Anônimo" in tipo_c: t_val = "anonimo"
+                        elif "Google" in tipo_c: t_val = "google"
+                        
+                        nova_camp = Campanha(empresa_id=emp_id, questionario_id=qs[sel_q], nome_campanha=n_c, tipo_coleta=t_val)
+                        db.add(nova_camp)
+                        db.commit()
+                        st.session_state['ultima_campanha_editada'] = nova_camp.id
+                        st.success("Campanha Iniciada!")
+                        st.rerun()
 
-            camps = db.query(Campanha).filter_by(empresa_id=emp_id).all()
-            if not camps: st.info("Nenhuma campanha ativa.")
+            camps = db.query(Campanha).filter_by(empresa_id=emp_id).order_by(Campanha.id.desc()).all()
+            if not camps: 
+                st.info("Nenhuma campanha ativa.")
             else:
-                c_dict = {c.nome_campanha: c.id for c in camps}
-                sel_c_id = st.selectbox("Selecione a Campanha para Analisar", list(c_dict.keys()), key="sel_camp_ana")
-                sel_c_id = c_dict[sel_c_id]
+                c_dict = {f"{c.nome_campanha} ({c.status})": c.id for c in camps}
+                
+                default_idx = 0
+                if 'ultima_campanha_editada' in st.session_state:
+                    for i, c_id in enumerate(c_dict.values()):
+                        if c_id == st.session_state['ultima_campanha_editada']:
+                            default_idx = i
+                            break
+                            
+                sel_key = st.selectbox("Selecione a Campanha para Analisar", list(c_dict.keys()), index=default_idx)
+                sel_c_id = c_dict[sel_key]
                 c_obj = db.query(Campanha).get(sel_c_id)
 
                 # CARREGANDO O DICIONÁRIO DE RISCOS PARA TODAS AS ABAS
@@ -889,7 +945,11 @@ def admin_portal():
                     
                     with c_edit1:
                         st.write(f"**Status Atual:** {c_obj.status}")
-                        st.write(f"**Modo de Coleta:** {'Anônimo (Link Aberto)' if getattr(c_obj, 'tipo_coleta', 'cpf') == 'anonimo' else 'Tradicional (CPF)'}")
+                        
+                        modo_atual = getattr(c_obj, 'tipo_coleta', 'cpf')
+                        if modo_atual is None: modo_atual = 'cpf'
+                        
+                        st.write(f"**Modo de Coleta:** {'Anônimo (Link Aberto)' if modo_atual == 'anonimo' else 'Google Forms (Externo)' if modo_atual == 'google' else 'Tradicional (CPF)'}")
                         
                         st.markdown("**🔗 Link de Acesso para os Funcionários:**")
                         st.code(f"{BASE_URL}?emp={c_obj.empresa.codigo_empresa}", language="text")
@@ -904,13 +964,24 @@ def admin_portal():
                         with st.form(f"edit_camp_{c_obj.id}"):
                             st.write("**✏️ Editar Dados**")
                             novo_nome = st.text_input("Nome da Campanha", value=c_obj.nome_campanha)
-                            modo_idx = 1 if getattr(c_obj, 'tipo_coleta', 'cpf') == 'anonimo' else 0
-                            novo_modo = st.radio("Modo de Coleta", ["Tradicional (Exige Validação de CPF e Nasc.)", "Link Aberto (100% Anônimo via Dropdown)"], index=modo_idx)
+                            
+                            modo_idx = 0
+                            if modo_atual == 'anonimo': modo_idx = 1
+                            elif modo_atual == 'google': modo_idx = 2
+                            
+                            novo_modo = st.radio("Modo de Coleta", ["Tradicional (Exige Validação de CPF e Nasc.)", "Link Aberto (100% Anônimo via Dropdown)", "Google Forms (Formulário Externo Embutido)"], index=modo_idx)
                             
                             if st.form_submit_button("💾 Salvar Alterações", use_container_width=True):
-                                c_obj.nome_campanha = novo_nome
-                                c_obj.tipo_coleta = "anonimo" if "Anônimo" in novo_modo else "cpf"
+                                novo_tipo = "anonimo" if "Anônimo" in novo_modo else "google" if "Google" in novo_modo else "cpf"
+                                
+                                db.query(Campanha).filter(Campanha.id == c_obj.id).update({
+                                    "nome_campanha": novo_nome,
+                                    "tipo_coleta": novo_tipo
+                                })
                                 db.commit()
+                                
+                                st.session_state['ultima_campanha_editada'] = c_obj.id
+                                
                                 st.success("Salvo com sucesso!")
                                 time.sleep(1)
                                 st.rerun()
@@ -1195,7 +1266,6 @@ def admin_portal():
                         registro_responsavel = c_obj.empresa.registro_responsavel if c_obj.empresa.registro_responsavel else "Registro Profissional"
                         
                         st.markdown(f"""
-                        <!-- CAPA DO RELATÓRIO -->
                         <div style="text-align: center; font-family: sans-serif; border: 1px solid #ccc; padding: 40px; border-radius: 5px;">
                             <br><br><br><br>
                             <h1 style="color: #1560bd; font-size: 28px;">RELATÓRIO DIAGNÓSTICO DE RISCOS PSICOSSOCIAIS</h1>
@@ -1213,7 +1283,6 @@ def admin_portal():
                         <div style='page-break-before: always;'></div>
                         <br><br>
                         
-                        <!-- TERMO DE ENCERRAMENTO -->
                         <div style="text-align: center; font-family: sans-serif; border: 1px solid #ccc; padding: 40px; border-radius: 5px;">
                             <br><br>
                             <h2 style="color: #000; text-decoration: underline;">PARECER TÉCNICO E DIRETRIZES DE SST</h2>
@@ -1221,7 +1290,7 @@ def admin_portal():
                             <p style="text-align: justify; font-size: 14px; line-height: 1.6;">
                             O presente relatório técnico apresenta e consolida os resultados do diagnóstico de riscos psicossociais realizado na empresa <b>{contexto}</b>, obtidos por meio da aplicação do inventário estruturado COPSOQ-II Versão Média.
                             <br><br>
-                            O levantamento seguiu rigorosos critérios metodológicos, estatísticos e de sigilo. Os dados aqui expostos fornecem os subsídios técnicos necessários para a etapa de identificação de perigos e avaliação de riscos do Programa de Gerenciamento de Riscos (PGR), em conformidade com a NR-01. As medidas preventivas sugeridas devem ser validadas, priorizadas e integradas ao plano de ação do PGR da organização.
+                            O levantamento seguiu rigorosos critérios metodológicos, estatísticos e de sigilo. Os dados aqui expostos fornecem os subsídios técnicos necessários para a etapa de identificação de perigos e avaliação de riscos do Programa de Gerenciamento de Riscos (PGR), em conformidade com a NR-01. As medidas preventivas sugeridas devem ser validadas, priorizadas e integradas ao plano de ação da organização sob a coordenação do Serviço Especializado em Engenharia de Segurança e em Medicina do Trabalho (SESMT) ou responsável de SST.
                             </p>
                             <br><br><br><br><br>
                             <p>____________________________________________________________________</p>
@@ -1727,8 +1796,13 @@ def main():
                 st.title(f"Acesso: {empresa.nome_empresa}")
                 st.info("Não há nenhuma campanha de pesquisa ativa para sua empresa no momento.")
             else:
-                if getattr(camp_ativa, 'tipo_coleta', 'cpf') == "anonimo":
+                modo_coleta = getattr(camp_ativa, 'tipo_coleta', 'cpf')
+                if modo_coleta is None: modo_coleta = 'cpf'
+                
+                if modo_coleta == "anonimo":
                     renderizar_questionario_anonimo(empresa, camp_ativa)
+                elif modo_coleta == "google":
+                    renderizar_questionario_google(empresa, camp_ativa)
                 else:
                     if 'logged_user_id' not in st.session_state:
                         login_colaborador(empresa)
