@@ -61,26 +61,24 @@ class MteEvidencias(BaseMTE):
 def processar_foto_para_db(image_bytes):
     """
     Reduz o tamanho e comprime a imagem para evitar estouro de memória (Tela Branca) no Render
-    e economizar espaço no banco de dados da HostGator (Máx 800px e 60% de qualidade).
+    e economizar espaço no banco de dados da HostGator.
     """
     if not image_bytes:
         return ""
     try:
         from PIL import Image as PILImage, ImageFile
-        # Evita erro em uploads mobile de arquivos corrompidos na transferência
+        # Evita erro ao processar imagens que sofreram micro-cortes no 3G/4G
         ImageFile.LOAD_TRUNCATED_IMAGES = True 
         
         with PILImage.open(io.BytesIO(image_bytes)) as img:
-            # O SEGREDO CONTRA A TELA BRANCA (Estouro de Memória no Render):
-            # Se for JPEG, pede para a biblioteca carregar uma versão menor diretamente
-            # do arquivo, economizando até 80% da memória RAM durante o processamento.
+            # O SEGREDO DO DRAFT: Economiza RAM no servidor lendo o JPEG de forma otimizada
             if img.format in ['JPEG', 'MPO']:
                 img.draft('RGB', (1000, 1000))
                 
             if img.mode in ("RGBA", "P"):
                 img = img.convert("RGB")
             
-            # Redimensiona mantendo a proporção para o máximo de 800px no lado maior
+            # Redimensiona mantendo proporção para máximo de 800px no maior lado
             if img.width > 800 or img.height > 800:
                 if img.width > img.height:
                     new_w = 800
@@ -91,11 +89,11 @@ def processar_foto_para_db(image_bytes):
                 img = img.resize((new_w, new_h), PILImage.Resampling.LANCZOS)
             
             buf = io.BytesIO()
-            # Salva como JPEG com compressão EXATA de 60% conforme solicitado
+            # Salva com 60% de qualidade, formato web-friendly
             img.save(buf, format='JPEG', quality=60, optimize=True)
             return base64.b64encode(buf.getvalue()).decode('utf-8')
     except Exception as e:
-        st.error(f"Erro ao processar a imagem. A foto pode estar corrompida. Tente novamente.")
+        st.error("Erro ao compactar a imagem no servidor. Tente usar uma foto com resolução menor.")
         return ""
 
 DB_URL = st.secrets["db_url"] if "db_url" in st.secrets else "sqlite:///sst_data.db"
@@ -184,7 +182,7 @@ def popular_fatores_iniciais():
                 pergunta_sugerida="**🗣️ Pergunta:** \"Você consegue dar uma paradinha rápida se precisar, ou a máquina e a chefia controlam cada passo seu o tempo todo, como se você fosse um robô?\"\n\n**💡 Dica para o Avaliador:** _O risco aqui é quando o funcionário não tem liberdade nem para as necessidades básicas sem sofrer punição ou parar a produção._", 
                 texto_pgr="Impossibilidade técnica ou gerencial de o trabalhador tomar decisões simples sobre o método ou ritmo de sua tarefa.", 
                 fontes_lista="Ritmo de trabalho 100% imposto pela máquina ou esteira, Proibição de fazer pausas rápidas (como ir ao banheiro ou beber água), Monitoramento excessivo e punitivo de cada movimento", 
-                lesoes="Transtorno mental / DORT", cids="F32, Z56", plano_acao="Revisar fluxos de acesso à gestão, permitindo pequenas decisões na base.", acompanhamento="Caixa de sugestões de melhorias."
+                lesoes="Transtorno mental / DORT", cids="F32, Z56", plano_acao="Revisar fluxos de aprovação, permitindo pequenas tomadas de decisão na base.", acompanhamento="Caixa de sugestões de melhorias."
             ),
             MteFatores(
                 fator_mte="07. Baixa justiça organizacional", 
@@ -285,7 +283,7 @@ def gerar_pdf_auditoria(auditoria_id):
                     pdf.multi_cell(0, 5, f"Nota do Avaliador: {res.observacoes_campo}")
                 pdf.ln(4)
                 
-        tipo_assinatura = auditoria.tipo_assinatura_escolhida if auditoria else "Não especificado"
+        tipo_assinatura = str(auditoria.tipo_assinatura_escolhida) if auditoria else "Não especificado"
         
         pdf.ln(5)
         pdf.set_font("Arial", 'B', 11)
@@ -294,7 +292,7 @@ def gerar_pdf_auditoria(auditoria_id):
         pdf.multi_cell(0, 5, f"Mecanismo de evidência: {tipo_assinatura}.")
         pdf.ln(3)
         pdf.set_font("Arial", 'I', 8)
-        pdf.multi_cell(0, 4, "Nota Legal: Este documento constitui evidência primária de campo. Sua validade técnica consolida-se mediante a assinatura abaixo para anexo ao PGR.")
+        pdf.multi_cell(0, 4, "Nota Legal: Este documento constitui evidência primária de campo. Sua validade técnica consolida-se mediante a assinatura e/ou evidência visual anexa para comprovação junto ao PGR.")
         
         if imagem_bytes is not None:
             temp_img = "temp_evidencia_pgr.jpg"
@@ -320,31 +318,33 @@ def gerar_pdf_auditoria(auditoria_id):
             if os.path.exists(temp_img):
                 os.remove(temp_img)
         else:
-            pdf.ln(20)
+            pdf.ln(15)
             
-        y_assinaturas = pdf.get_y()
-        if y_assinaturas > 260:
-            pdf.add_page()
+        # --- LÓGICA DE ASSINATURA CONDICIONAL (Opção 5: Fé Pública) ---
+        if not tipo_assinatura.startswith("5"):
             y_assinaturas = pdf.get_y()
+            if y_assinaturas > 260:
+                pdf.add_page()
+                y_assinaturas = pdf.get_y()
+                
+            pdf.set_font("Arial", 'B', 10)
+            pdf.cell(0, 5, "________________________________________________________", ln=True, align='C')
             
-        pdf.set_font("Arial", 'B', 10)
-        pdf.cell(0, 5, "________________________________________________________", ln=True, align='C')
-        
-        txt_nome = auditoria.nome_signatario if auditoria.nome_signatario else "Assinatura do Respondente"
-        pdf.cell(0, 5, txt_nome, ln=True, align='C')
-        
-        pdf.set_font("Arial", '', 9)
-        titulo_signatario = "Trabalhador Consultado (Amostragem NR-01)"
-        if tipo_assinatura.startswith("2."):
-            titulo_signatario = "Responsável pelo Setor / Turno Avaliado"
+            txt_nome = auditoria.nome_signatario if auditoria.nome_signatario else "Assinatura do Respondente"
+            pdf.cell(0, 5, txt_nome, ln=True, align='C')
             
-        txt_cargo_cpf = f"{titulo_signatario}"
-        if auditoria.cargo_signatario:
-            txt_cargo_cpf += f" | {auditoria.cargo_signatario}"
-        if auditoria.cpf_signatario:
-            txt_cargo_cpf += f" - CPF: {auditoria.cpf_signatario}"
-            
-        pdf.cell(0, 4, txt_cargo_cpf, ln=True, align='C')
+            pdf.set_font("Arial", '', 9)
+            titulo_signatario = "Trabalhador Consultado (Amostragem NR-01)"
+            if tipo_assinatura.startswith("2."):
+                titulo_signatario = "Responsável pelo Setor / Turno Avaliado"
+                
+            txt_cargo_cpf = f"{titulo_signatario}"
+            if auditoria.cargo_signatario:
+                txt_cargo_cpf += f" | {auditoria.cargo_signatario}"
+            if auditoria.cpf_signatario:
+                txt_cargo_cpf += f" - CPF: {auditoria.cpf_signatario}"
+                
+            pdf.cell(0, 4, txt_cargo_cpf, ln=True, align='C')
         
         # RODAPÉ COM CARIMBO DO AVALIADOR
         pdf.set_y(275)
@@ -377,7 +377,7 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
     
     db = get_db_mte()
     try:
-        # GERENCIAMENTO DE ESTADO PARA EDIÇÃO (SESSÃO DE AUDITORIA)
+        # GERENCIAMENTO DE ESTADO PARA EDIÇÃO
         if 'mte_edit_id' not in st.session_state:
             st.session_state['mte_edit_id'] = None
 
@@ -403,7 +403,7 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
 
             fatores = db.query(MteFatores).all()
             
-            # Carregar resultados prévios caso seja uma edição
+            # Carregar resultados prévios caso seja edição
             dict_resultados = {}
             if aud_obj_carregado:
                 for r in db.query(MteResultados).filter_by(auditoria_id=aud_obj_carregado.id).all():
@@ -449,7 +449,7 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
             
             tipo_comprovacao = st.radio("Selecione o mecanismo probatório:", opcoes_comprovacao, index=idx_comp, key=f"rad_tipo_{key_suf}")
             
-            # RAIO-X DE PROTEÇÃO DE EVIDÊNCIA (Durante Edição)
+            # RAIO-X DE PROTEÇÃO DE EVIDÊNCIA
             ev_obj = None
             if aud_obj_carregado:
                 ev_obj = db.query(MteEvidencias).filter_by(auditoria_id=aud_obj_carregado.id).first()
@@ -467,17 +467,28 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
 
             if not ev_obj or substituir_ev:
                 if tipo_comprovacao in ["1. Fluxo Híbrido (Foto da RAT Física)", "4. Modo Não Alfabetizado (Impressão Digital)", "5. Fé Pública do Avaliador (Diário de Campo)", "6. Inserção em Lista de DDS/OS"]:
-                    st.info("💡 **Dica de Campo:** No celular, clique abaixo e escolha 'Câmera' para tirar a foto ou 'Arquivos' para galeria.")
+                    st.info("💡 **Dica:** Tire uma foto ou selecione na galeria (a compactação para o banco de dados é feita automaticamente).")
                     
                     foto_capturada = st.file_uploader(
-                        "📸 Capturar Foto ou Selecionar da Galeria", 
+                        "📸 Capturar Foto ou Selecionar arquivo", 
                         type=['jpg', 'jpeg', 'png'], 
-                        key=f"up_geral_{key_suf}",
-                        help="Tire a foto da RAT, digital ou diário de campo."
+                        key=f"up_geral_{key_suf}"
                     )
                     if foto_capturada:
                         evidencia_bytes = foto_capturada.getvalue()
-                        st.success("✅ Arquivo pré-carregado com sucesso! A compactação acontecerá ao salvar.")
+                        st.success("✅ Arquivo de foto anexado com sucesso!")
+                        
+                    # Se for a Opção 5, não mostrar campos de Nome e Cargo do trabalhador
+                    if tipo_comprovacao.startswith("5"):
+                        nome_s = ""
+                        cargo_s = ""
+                        cpf_s = ""
+                    else:
+                        st.write("✏️ **Identificação do Signatário / Documento:**")
+                        nome_s = st.text_input("Nome do Trabalhador / Título do Documento", value=nome_s, key=f"nome_hyb_{key_suf}")
+                        c1, c2 = st.columns(2)
+                        cargo_s = c1.text_input("Setor/Cargo", value=cargo_s, key=f"cargo_hyb_{key_suf}")
+                        cpf_s = c2.text_input("CPF (Opcional)", value=cpf_s, key=f"cpf_hyb_{key_suf}")
                         
                 elif tipo_comprovacao in ["2. Atestado do Responsável do Turno (Assinatura Eletrônica)", "3. Representante Amostral (Assinatura Eletrônica)"]:
                     st.info("Busque o trabalhador ou adicione manualmente se não for registrado.")
@@ -515,12 +526,17 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                             Image.fromarray(cv.image_data.astype('uint8')).convert('RGB').save(buf, format="JPEG")
                             evidencia_bytes = buf.getvalue()
             else:
-                # EDIÇÃO DE TEXTO APENAS
-                st.write("✏️ **Revisar dados do signatário (Apenas Texto):**")
-                nome_s = st.text_input("Nome Completo", value=nome_s, key=f"nome_ed_{key_suf}")
-                c1, c2 = st.columns(2)
-                cargo_s = c1.text_input("Cargo", value=cargo_s, key=f"cargo_ed_{key_suf}")
-                cpf_s = c2.text_input("CPF", value=cpf_s, key=f"cpf_ed_{key_suf}")
+                # Edição de texto quando já existe evidência protegida
+                if tipo_comprovacao.startswith("5"):
+                    nome_s = ""
+                    cargo_s = ""
+                    cpf_s = ""
+                else:
+                    st.write("✏️ **Revisar dados do signatário (Apenas Texto):**")
+                    nome_s = st.text_input("Nome Completo", value=nome_s, key=f"nome_ed_{key_suf}")
+                    c1, c2 = st.columns(2)
+                    cargo_s = c1.text_input("Cargo/Setor", value=cargo_s, key=f"cargo_ed_{key_suf}")
+                    cpf_s = c2.text_input("CPF", value=cpf_s, key=f"cpf_ed_{key_suf}")
 
             st.divider()
             c_btn1, c_btn2 = st.columns(2)
@@ -530,14 +546,10 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
             if salvar_rascunho or finalizar_aud:
                 status_final = "Concluída" if finalizar_aud else "Em Andamento"
                 
-                if not evidencia_bytes and not ev_obj and not tipo_comprovacao.startswith("5"):
-                    st.warning("⚠️ Nenhuma evidência visual/assinatura registrada. O documento será salvo sem comprovação anexada.")
-                    
                 cpf_do_tecnico = st.session_state.get('cpf_avaliador', '')
                 registro_do_tecnico = st.session_state.get('registro_avaliador', '')
 
                 if aud_obj_carregado:
-                    # ATUALIZAR AUDITORIA EXISTENTE
                     aud_obj_carregado.data_auditoria = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     aud_obj_carregado.status_conclusao = status_final
                     aud_obj_carregado.tipo_assinatura_escolhida = tipo_comprovacao
@@ -551,7 +563,6 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                     db.query(MteResultados).filter_by(auditoria_id=aud_obj_carregado.id).delete()
                     aud_id_final = aud_obj_carregado.id
                 else:
-                    # CRIAR NOVA AUDITORIA
                     nova_aud = MteAuditorias(
                         empresa_id=emp_id, 
                         data_auditoria=datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
@@ -568,7 +579,6 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                     db.flush() 
                     aud_id_final = nova_aud.id
                 
-                # Inserir novos resultados do checklist
                 riscos_salvos = 0
                 for f in fatores:
                     if st.session_state.get(f"toggle_{f.id}_{key_suf}"):
@@ -583,7 +593,7 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                         ))
                         riscos_salvos += 1
                 
-                # Lidar com a Evidência Documental (Compressão e Resize Seguro)
+                # Salvar a evidência (se houver e precisar substituir)
                 if substituir_ev or not ev_obj:
                     if evidencia_bytes:
                         db.query(MteEvidencias).filter_by(auditoria_id=aud_id_final).delete()
@@ -619,7 +629,7 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                     c1, c2 = st.columns([2, 1])
                     with c1:
                         st.markdown(f"**Identificação:** {aud_data.tipo_assinatura_escolhida}")
-                        if aud_data.nome_signatario:
+                        if aud_data.nome_signatario and not str(aud_data.tipo_assinatura_escolhida).startswith("5"):
                             st.markdown(f"**Consultado:** {aud_data.nome_signatario} ({aud_data.cargo_signatario})")
                         
                         resultados_hist = db.query(MteResultados, MteFatores).join(MteFatores).filter(MteResultados.auditoria_id == id_aud, MteResultados.risco_existente == True).all()
