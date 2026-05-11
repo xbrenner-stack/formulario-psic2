@@ -4,10 +4,20 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 import os
 import io
 import time
+import numpy as np
+from PIL import Image
+from fpdf import FPDF
+from streamlit_drawable_canvas import st_canvas
 import base64
 from datetime import datetime
-from fpdf import FPDF
-from PIL import Image
+
+# --- TRAVA DE SEGURANÇA PARA FRAGMENTOS (ALTA PERFORMANCE) ---
+if hasattr(st, "fragment"):
+    fragment_decorator = st.fragment
+elif hasattr(st, "experimental_fragment"):
+    fragment_decorator = st.experimental_fragment
+else:
+    def fragment_decorator(func): return func
 
 BaseMTE = declarative_base()
 
@@ -109,6 +119,7 @@ def calcular_zenit_mte(peso_et, peso_re, peso_me, severidade_str):
         "Baixa": {"Leve": "Risco Baixo", "Moderada": "Risco Baixo", "Grave": "Risco Elevado", "Gravíssima": "Risco Extremo"},
         "Rara": {"Leve": "Risco Baixo", "Moderada": "Risco Baixo", "Grave": "Risco Moderado", "Gravíssima": "Risco Elevado"}
     }
+    
     risco_final = matriz_risco.get(prob_str, {}).get(severidade_str, "Risco Indefinido")
     
     acoes = {
@@ -117,12 +128,14 @@ def calcular_zenit_mte(peso_et, peso_re, peso_me, severidade_str):
         "Risco Moderado": {"criterio": "Incerto", "decisao": "Reavaliar / Informação Adicional", "aceitabilidade": "Reduzir ao nível mais baixo possível"},
         "Risco Baixo": {"criterio": "Aceitável", "decisao": "Manter o Nível", "aceitabilidade": "Manter o nível do risco"}
     }
-    return {"PR": pr_val, "prob_calc": prob_str, "risco": risco_final, "acao": acoes.get(risco_final, {"criterio": "-", "decisao": "-", "aceitabilidade": "-"})}
+    acao_sugerida = acoes.get(risco_final, {"criterio": "-", "decisao": "-", "aceitabilidade": "-"})
+    
+    return {"PR": pr_val, "prob_calc": prob_str, "risco": risco_final, "acao": acao_sugerida}
 
 def popular_fatores_iniciais():
     db = get_db_mte()
     
-    # Atualiza o texto sem deletar a linha (protege a Foreign Key do banco)
+    # CORREÇÃO CIRÚRGICA: Atualiza o texto sem deletar a linha (protege a Foreign Key)
     try:
         fator_corrigir = db.query(MteFatores).filter(MteFatores.fontes_lista.like('%descarado%')).first()
         if fator_corrigir:
@@ -236,12 +249,13 @@ def gerar_pdf_auditoria(auditoria_id):
     db = get_db_mte()
     try:
         auditoria = db.query(MteAuditorias).get(auditoria_id)
-        if not auditoria: return b""
+        if not auditoria:
+            return b""
 
         evidencia_db = db.query(MteEvidencias).filter(MteEvidencias.auditoria_id == auditoria_id).first()
         imagem_bytes = None
         
-        # BLINDAGEM DE BASE64 CORROMPIDO 
+        # BLINDAGEM DE BASE64 CORROMPIDO (LIMITE DO BANCO DE DADOS)
         if evidencia_db and evidencia_db.foto_base64:
             try:
                 b64_str = evidencia_db.foto_base64
@@ -257,6 +271,7 @@ def gerar_pdf_auditoria(auditoria_id):
         pdf.ln(5)
         
         pdf.set_font("Arial", '', 10)
+        # TEXTO ATUALIZADO COM A REFERÊNCIA AO GUIA OFICIAL DO MTE
         texto_metodologia = (
             "Em conformidade com a NR-01 (subitem 1.5.3.3) e NR-17, este documento comprova a consulta formal aos trabalhadores para a identificação "
             "preliminar de perigos e avaliação qualitativa de fatores de riscos psicossociais, visando integração ao Programa de Gerenciamento de Riscos (PGR). "
@@ -308,10 +323,14 @@ def gerar_pdf_auditoria(auditoria_id):
                     w, h = img.size
                     aspect = h / w
                     img_h = 80 * aspect
-                    if pdf.get_y() + img_h > 240:
+                    
+                    curr_y = pdf.get_y()
+                    if curr_y + img_h > 240:
                         pdf.add_page()
-                    pdf.image(temp_img, x=65, y=pdf.get_y(), w=80)
-                    pdf.set_y(pdf.get_y() + img_h + 5)
+                        curr_y = pdf.get_y()
+                    
+                    pdf.image(temp_img, x=65, y=curr_y, w=80)
+                    pdf.set_y(curr_y + img_h + 5)
             except Exception:
                 pass
             if os.path.exists(temp_img):
@@ -319,14 +338,16 @@ def gerar_pdf_auditoria(auditoria_id):
         else:
             pdf.ln(15)
             
-        # LÓGICA DE ASSINATURA: Oculta para Opções 1, 5 ou 6
+        # --- LÓGICA DE ASSINATURA CONDICIONAL ---
         if not (tipo_assinatura.startswith("1") or tipo_assinatura.startswith("5") or tipo_assinatura.startswith("6")):
             y_assinaturas = pdf.get_y()
             if y_assinaturas > 260:
                 pdf.add_page()
-            
+                y_assinaturas = pdf.get_y()
+                
             pdf.set_font("Arial", 'B', 10)
             pdf.cell(0, 5, "________________________________________________________", ln=True, align='C')
+            
             txt_nome = auditoria.nome_signatario if auditoria.nome_signatario else "Assinatura do Respondente"
             pdf.cell(0, 5, txt_nome, ln=True, align='C')
             
@@ -336,17 +357,25 @@ def gerar_pdf_auditoria(auditoria_id):
                 titulo_signatario = "Responsável pelo Setor / Turno Avaliado"
                 
             txt_cargo_cpf = f"{titulo_signatario}"
-            if auditoria.cargo_signatario: txt_cargo_cpf += f" | {auditoria.cargo_signatario}"
-            if auditoria.cpf_signatario: txt_cargo_cpf += f" - CPF: {auditoria.cpf_signatario}"
+            if auditoria.cargo_signatario:
+                txt_cargo_cpf += f" | {auditoria.cargo_signatario}"
+            if auditoria.cpf_signatario:
+                txt_cargo_cpf += f" - CPF: {auditoria.cpf_signatario}"
+                
             pdf.cell(0, 4, txt_cargo_cpf, ln=True, align='C')
         
+        # RODAPÉ COM CARIMBO DO AVALIADOR
         pdf.ln(15)
         pdf.set_font("Arial", 'I', 8)
+        
         texto_rodape = f"Levantamento conduzido em campo por: {auditoria.usuario_logado}"
-        if auditoria.tecnico_cpf: texto_rodape += f" | CPF: {auditoria.tecnico_cpf}"
-        if auditoria.tecnico_registro: texto_rodape += f" | Registro Profissional: {auditoria.tecnico_registro}"
+        if auditoria.tecnico_cpf:
+            texto_rodape += f" | CPF: {auditoria.tecnico_cpf}"
+        if auditoria.tecnico_registro:
+            texto_rodape += f" | Registro Profissional: {auditoria.tecnico_registro}"
             
         pdf.cell(0, 5, texto_rodape, ln=True, align='C')
+        
         data_h = datetime.now()
         pdf.cell(0, 5, f"Data e Hora da Geração do Arquivo: {data_h.strftime('%d/%m/%Y %H:%M')}", ln=True, align='C')
                 
@@ -354,6 +383,28 @@ def gerar_pdf_auditoria(auditoria_id):
         return out.encode('latin1', errors='replace') if isinstance(out, str) else bytes(out)
     finally:
         db.close()
+
+# --- FRAGMENTO DE ALTA PERFORMANCE PARA O CELULAR ---
+@fragment_decorator
+def renderizar_card_fator(fator, r_atual, key_suf):
+    def_identificado = r_atual is not None
+    def_fontes = [f.strip() for f in r_atual.fontes_selecionadas.split(',')] if r_atual and r_atual.fontes_selecionadas else []
+    def_sev = r_atual.severidade if r_atual and r_atual.severidade else "Leve"
+    idx_sev = ["Leve", "Moderada", "Grave"].index(def_sev) if def_sev in ["Leve", "Moderada", "Grave"] else 0
+    def_obs = r_atual.observacoes_campo if r_atual else ""
+
+    with st.expander(fator.fator_mte):
+        st.markdown(fator.pergunta_sugerida)
+        identificado = st.toggle("Identificar Risco", value=def_identificado, key=f"toggle_{fator.id}_{key_suf}")
+        if identificado:
+            fontes_opcoes = [f.strip() for f in fator.fontes_lista.split(',')] if fator.fontes_lista else []
+            valid_def_fontes = [f for f in def_fontes if f in fontes_opcoes]
+            
+            st.multiselect("Fontes Observadas (Selecione)", options=fontes_opcoes, default=valid_def_fontes, key=f"fontes_{fator.id}_{key_suf}")
+            help_severidade = "🟢 Leve: Estresse passageiro. | 🟡 Moderada: Sofrimento contínuo, atestado. | 🔴 Grave: Dano crônico, Burnout."
+            st.caption(f"_{help_severidade}_")
+            st.selectbox("Severidade do Dano (Critério Médico/Ocupacional)", options=["Leve", "Moderada", "Grave"], index=idx_sev, key=f"sev_{fator.id}_{key_suf}")
+            st.text_area("Observações de Campo (Opcional)", value=def_obs, key=f"obs_{fator.id}_{key_suf}")
 
 # --- INTERFACE PRINCIPAL ---
 def renderizar_auditoria_mte(emp_id, tecnico_nome):
@@ -366,6 +417,7 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
     
     db = get_db_mte()
     try:
+        # GERENCIAMENTO DE ESTADO PARA EDIÇÃO
         if 'mte_edit_id' not in st.session_state:
             st.session_state['mte_edit_id'] = None
 
@@ -378,12 +430,11 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
         key_suf = str(aud_obj_carregado.id) if aud_obj_carregado else "new"
 
         # ==========================================
-        # ABA 1: NOVA / EDITAR AUDITORIA (FORMULÁRIO DE ALTA PERFORMANCE PARA CELULAR)
+        # ABA 1: NOVA / EDITAR AUDITORIA
         # ==========================================
         with aba_nova:
-            # Botão de Cancelar fica fora do formulário para agir imediatamente
             if aud_obj_carregado:
-                st.info(f"✏️ **Modo de Edição:** Iniciada em {aud_obj_carregado.data_auditoria}")
+                st.info(f"✏️ **Modo de Edição:** Editando auditoria iniciada em {aud_obj_carregado.data_auditoria} (Status: {aud_obj_carregado.status_conclusao})")
                 if st.button("❌ Cancelar Edição e Voltar", key=f"btn_cancela_{key_suf}"):
                     st.session_state['mte_edit_id'] = None
                     st.rerun()
@@ -391,96 +442,141 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                 st.info("🆕 Iniciando um novo levantamento de campo.")
 
             fatores = db.query(MteFatores).all()
+            
+            # Carregar resultados prévios caso seja edição
             dict_resultados = {}
             if aud_obj_carregado:
                 for r in db.query(MteResultados).filter_by(auditoria_id=aud_obj_carregado.id).all():
                     dict_resultados[r.fator_id] = r
             
-            help_severidade = "🟢 Leve: Estresse passageiro, sem adoecimento. | 🟡 Moderada: Gera sofrimento contínuo, insônia, atestado. | 🔴 Grave: Dano crônico, Burnout, incapacidade."
+            # OTIMIZAÇÃO: Chamando o Fragmento para impedir que o celular trave
+            for fator in fatores:
+                r_atual = dict_resultados.get(fator.id)
+                renderizar_card_fator(fator, r_atual, key_suf)
+                        
+            st.divider()
+            st.subheader("Evidência de Consulta (NR-01)")
             
-            # --- INÍCIO DO FORMULÁRIO BLINDADO (Corta internet enquanto o peão preenche) ---
-            with st.form("form_mte_auditoria", clear_on_submit=False):
-                st.write("### Identificação de Riscos")
-                
-                for fator in fatores:
-                    r_atual = dict_resultados.get(fator.id)
-                    def_identificado = r_atual is not None
-                    def_fontes = [f.strip() for f in r_atual.fontes_selecionadas.split(',')] if r_atual and r_atual.fontes_selecionadas else []
-                    def_sev = r_atual.severidade if r_atual and r_atual.severidade else "Leve"
-                    idx_sev = ["Leve", "Moderada", "Grave"].index(def_sev) if def_sev in ["Leve", "Moderada", "Grave"] else 0
-                    def_obs = r_atual.observacoes_campo if r_atual else ""
+            opcoes_comprovacao = [
+                "1. Fluxo Híbrido (Foto da RAT Física)",
+                "2. Atestado do Responsável do Turno (Assinatura Eletrônica)",
+                "3. Representante Amostral (Assinatura Eletrônica)",
+                "4. Modo Não Alfabetizado (Impressão Digital)",
+                "5. Fé Pública do Avaliador (Diário de Campo)",
+                "6. Inserção em Lista de DDS/OS"
+            ]
+            
+            idx_comp = 0
+            if aud_obj_carregado and aud_obj_carregado.tipo_assinatura_escolhida in opcoes_comprovacao:
+                idx_comp = opcoes_comprovacao.index(aud_obj_carregado.tipo_assinatura_escolhida)
+            
+            tipo_comprovacao = st.radio("Selecione o mecanismo probatório:", opcoes_comprovacao, index=idx_comp, key=f"rad_tipo_{key_suf}")
+            
+            # RAIO-X DE PROTEÇÃO DE EVIDÊNCIA E BLINDAGEM DE BASE64
+            ev_obj = None
+            if aud_obj_carregado:
+                ev_obj = db.query(MteEvidencias).filter_by(auditoria_id=aud_obj_carregado.id).first()
+            
+            substituir_ev = False
+            if ev_obj and ev_obj.foto_base64:
+                st.success("✅ **Evidência Protegida:** Uma prova documental já está armazenada no banco para esta auditoria.")
+                try:
+                    b64_str = ev_obj.foto_base64
+                    b64_str += "=" * ((4 - len(b64_str) % 4) % 4)
+                    st.image(base64.b64decode(b64_str), width=300)
+                except Exception:
+                    st.error("⚠️ Esta foto foi corrompida pelo limite antigo do banco de dados e não pode ser exibida.")
+                    
+                substituir_ev = st.toggle("🔄 Descartar e Capturar Nova Evidência", key=f"subs_ev_{key_suf}")
+            
+            evidencia_bytes = None
+            nome_s = aud_obj_carregado.nome_signatario if aud_obj_carregado else ""
+            cargo_s = aud_obj_carregado.cargo_signatario if aud_obj_carregado else ""
+            cpf_s = aud_obj_carregado.cpf_signatario if aud_obj_carregado else ""
 
-                    with st.expander(fator.fator_mte):
-                        st.markdown(fator.pergunta_sugerida)
-                        identificado = st.checkbox("Identificar Risco (Marque se houver)", value=def_identificado, key=f"t_{fator.id}_{key_suf}")
+            if not ev_obj or substituir_ev:
+                if tipo_comprovacao in ["1. Fluxo Híbrido (Foto da RAT Física)", "4. Modo Não Alfabetizado (Impressão Digital)", "5. Fé Pública do Avaliador (Diário de Campo)", "6. Inserção em Lista de DDS/OS"]:
+                    st.info("💡 **Dica:** Tire uma foto ou selecione na galeria (a compactação para o banco de dados é feita automaticamente).")
+                    
+                    foto_capturada = st.file_uploader(
+                        "📸 Capturar Foto ou Selecionar arquivo", 
+                        type=['jpg', 'jpeg', 'png'], 
+                        key=f"up_geral_{key_suf}"
+                    )
+                    if foto_capturada:
+                        evidencia_bytes = foto_capturada.getvalue()
+                        st.success("✅ Arquivo de foto anexado com sucesso!")
                         
-                        fontes_opcoes = [f.strip() for f in fator.fontes_lista.split(',')] if fator.fontes_lista else []
-                        valid_def_fontes = [f for f in def_fontes if f in fontes_opcoes]
+                    # Se for a Opção 1, 5 ou 6, não mostrar campos de Nome e Cargo do trabalhador individual
+                    if tipo_comprovacao.startswith("1") or tipo_comprovacao.startswith("5") or tipo_comprovacao.startswith("6"):
+                        nome_s = ""
+                        cargo_s = ""
+                        cpf_s = ""
+                    else:
+                        st.write("✏️ **Identificação do Signatário / Documento:**")
+                        nome_s = st.text_input("Nome do Trabalhador / Título do Documento", value=nome_s, key=f"nome_hyb_{key_suf}")
+                        c1, c2 = st.columns(2)
+                        cargo_s = c1.text_input("Setor/Cargo", value=cargo_s, key=f"cargo_hyb_{key_suf}")
+                        cpf_s = c2.text_input("CPF (Opcional)", value=cpf_s, key=f"cpf_hyb_{key_suf}")
                         
-                        st.multiselect("Fontes Observadas (Selecione)", options=fontes_opcoes, default=valid_def_fontes, key=f"f_{fator.id}_{key_suf}")
-                        st.caption(f"_{help_severidade}_")
-                        st.selectbox("Severidade do Dano", options=["Leve", "Moderada", "Grave"], index=idx_sev, key=f"s_{fator.id}_{key_suf}")
-                        st.text_area("Observações de Campo (Opcional)", value=def_obs, key=f"o_{fator.id}_{key_suf}")
-                        
-                st.divider()
-                st.subheader("Evidência de Consulta (NR-01)")
-                
-                opcoes_comprovacao = [
-                    "1. Fluxo Híbrido (Foto da RAT Física)",
-                    "2. Atestado do Responsável do Turno (Assinatura Eletrônica)",
-                    "3. Representante Amostral (Assinatura Eletrônica)",
-                    "4. Modo Não Alfabetizado (Impressão Digital)",
-                    "5. Fé Pública do Avaliador (Diário de Campo)",
-                    "6. Inserção em Lista de DDS/OS"
-                ]
-                
-                idx_comp = 0
-                if aud_obj_carregado and aud_obj_carregado.tipo_assinatura_escolhida in opcoes_comprovacao:
-                    idx_comp = opcoes_comprovacao.index(aud_obj_carregado.tipo_assinatura_escolhida)
-                
-                tipo_comprovacao = st.radio("Selecione o mecanismo probatório:", opcoes_comprovacao, index=idx_comp, key=f"rad_tipo_{key_suf}")
-                
-                # RAIO-X DE EVIDÊNCIA NO BANCO
-                ev_obj = None
-                if aud_obj_carregado:
-                    ev_obj = db.query(MteEvidencias).filter_by(auditoria_id=aud_obj_carregado.id).first()
-                
-                if ev_obj and ev_obj.foto_base64:
-                    st.success("✅ Este laudo já possui uma prova documental salva.")
+                elif tipo_comprovacao in ["2. Atestado do Responsável do Turno (Assinatura Eletrônica)", "3. Representante Amostral (Assinatura Eletrônica)"]:
+                    st.info("Busque o trabalhador ou adicione manualmente se não for registrado.")
+                    funcionarios = []
                     try:
-                        b64_str = ev_obj.foto_base64
-                        b64_str += "=" * ((4 - len(b64_str) % 4) % 4)
-                        st.image(base64.b64decode(b64_str), width=200)
-                    except Exception:
-                        st.error("⚠️ Foto corrompida no banco.")
-                
-                st.info("📱 **MODO ALTA PERFORMANCE:** Para não travar seu celular, esta tela é fixa. Preencha APENAS as caixinhas que fizerem sentido para o Mecanismo de Prova que você escolheu acima. Ignore o restante.")
-                
-                # COMPONENTES FIXOS DO FORMULÁRIO
-                foto_capturada = st.file_uploader("📸 Nova Imagem (RAT, DDS ou Diário) - Substitui a anterior se houver", type=['jpg', 'jpeg', 'png'], key=f"up_{key_suf}")
-                
-                st.markdown("✍️ **Dados do Assinante (Se houver)**")
-                nome_s = st.text_input("Nome do Trabalhador", value=(aud_obj_carregado.nome_signatario if aud_obj_carregado else ""), key=f"ns_{key_suf}")
-                c1, c2 = st.columns(2)
-                cargo_s = c1.text_input("Cargo/Setor", value=(aud_obj_carregado.cargo_signatario if aud_obj_carregado else ""), key=f"cs_{key_suf}")
-                cpf_s = c2.text_input("CPF", value=(aud_obj_carregado.cpf_signatario if aud_obj_carregado else ""), key=f"cps_{key_suf}")
+                        res_func = db.execute(text("SELECT nome, funcao, cpf FROM funcionarios WHERE empresa_id = :e_id ORDER BY nome ASC"), {"e_id": emp_id}).fetchall()
+                        for r in res_func: funcionarios.append({"nome": r[0], "funcao": r[1], "cpf": r[2]})
+                    except Exception: pass
+                        
+                    opcoes_func = [f"{f['nome']} ({f['funcao']})" if f['funcao'] else f['nome'] for f in funcionarios]
+                    opcoes_func.append("➕ Adicionar Manualmente (Sócio, Diretor, Não Cadastrado)")
+                    
+                    selecao_func = st.selectbox("Buscar Funcionário", options=opcoes_func, index=None, key=f"sel_func_{key_suf}")
+                    
+                    if selecao_func == "➕ Adicionar Manualmente (Sócio, Diretor, Não Cadastrado)":
+                        nome_s = st.text_input("Nome Completo", value=nome_s, key=f"nome_man_{key_suf}")
+                        c1, c2 = st.columns(2)
+                        cargo_s = c1.text_input("Cargo (Ex: Sócio, Gerente)", value=cargo_s, key=f"cargo_man_{key_suf}")
+                        cpf_s = c2.text_input("CPF", value=cpf_s, key=f"cpf_man_{key_suf}")
+                    elif selecao_func:
+                        for f in funcionarios:
+                            match_str = f"{f['nome']} ({f['funcao']})" if f['funcao'] else f['nome']
+                            if match_str == selecao_func:
+                                nome_s = f['nome']
+                                c1, c2 = st.columns(2)
+                                cargo_s = c1.text_input("Cargo", value=(f['funcao'] or ""), disabled=True, key=f"c_bloq_{key_suf}")
+                                cpf_s = c2.text_input("CPF", value=(f['cpf'] or ""), disabled=True, key=f"cp_bloq_{key_suf}")
+                                break
+                    
+                    st.write("Assinatura na Tela:")
+                    cv = st_canvas(stroke_width=2, stroke_color="#000", background_color="#FFF", height=150, key=f"cv_ass_{key_suf}")
+                    if cv.image_data is not None:
+                        if np.any(cv.image_data[:, :, 3] > 0):
+                            buf = io.BytesIO()
+                            Image.fromarray(cv.image_data.astype('uint8')).convert('RGB').save(buf, format="JPEG")
+                            evidencia_bytes = buf.getvalue()
+            else:
+                # Edição de texto quando já existe evidência protegida
+                if tipo_comprovacao.startswith("1") or tipo_comprovacao.startswith("5") or tipo_comprovacao.startswith("6"):
+                    nome_s = ""
+                    cargo_s = ""
+                    cpf_s = ""
+                else:
+                    st.write("✏️ **Revisar dados do signatário (Apenas Texto):**")
+                    nome_s = st.text_input("Nome Completo", value=nome_s, key=f"nome_ed_{key_suf}")
+                    c1, c2 = st.columns(2)
+                    cargo_s = c1.text_input("Cargo/Setor", value=cargo_s, key=f"cargo_ed_{key_suf}")
+                    cpf_s = c2.text_input("CPF", value=cpf_s, key=f"cpf_ed_{key_suf}")
 
-                st.divider()
-                c_btn1, c_btn2 = st.columns(2)
-                salvar_rascunho = c_btn1.form_submit_button("💾 Salvar Rascunho", use_container_width=True)
-                finalizar_aud = c_btn2.form_submit_button("🔒 Finalizar Auditoria", type="primary", use_container_width=True)
-            # --- FIM DO FORMULÁRIO ---
+            st.divider()
+            c_btn1, c_btn2 = st.columns(2)
+            salvar_rascunho = c_btn1.button("💾 Salvar Rascunho", use_container_width=True)
+            finalizar_aud = c_btn2.button("🔒 Finalizar Auditoria", type="primary", use_container_width=True)
 
-            # PROCESSAMENTO NO SERVIDOR (Só executa se apertar um dos botões)
             if salvar_rascunho or finalizar_aud:
                 status_final = "Concluída" if finalizar_aud else "Em Andamento"
                 
                 cpf_do_tecnico = st.session_state.get('cpf_avaliador', '')
                 registro_do_tecnico = st.session_state.get('registro_avaliador', '')
-                
-                # Limpa os campos de texto se for uma opção coletiva, ignorando o que o usuário preencheu acidentalmente
-                if tipo_comprovacao.startswith("1") or tipo_comprovacao.startswith("5") or tipo_comprovacao.startswith("6"):
-                    nome_s, cargo_s, cpf_s = "", "", ""
 
                 if aud_obj_carregado:
                     aud_obj_carregado.data_auditoria = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -514,26 +610,26 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                 
                 riscos_salvos = 0
                 for f in fatores:
-                    # Captura o valor do Checkbox que está dentro do formulário
-                    if st.session_state.get(f"t_{f.id}_{key_suf}"):
-                        fontes = st.session_state.get(f"f_{f.id}_{key_suf}", [])
+                    if st.session_state.get(f"toggle_{f.id}_{key_suf}"):
+                        fontes = st.session_state.get(f"fontes_{f.id}_{key_suf}", [])
                         db.add(MteResultados(
                             auditoria_id=aud_id_final, 
                             fator_id=f.id, 
                             risco_existente=True, 
                             fontes_selecionadas=", ".join(fontes), 
-                            severidade=st.session_state.get(f"s_{f.id}_{key_suf}", ""), 
-                            observacoes_campo=st.session_state.get(f"o_{f.id}_{key_suf}", "")
+                            severidade=st.session_state.get(f"sev_{f.id}_{key_suf}", ""), 
+                            observacoes_campo=st.session_state.get(f"obs_{f.id}_{key_suf}", "")
                         ))
                         riscos_salvos += 1
                 
-                if foto_capturada:
-                    db.query(MteEvidencias).filter_by(auditoria_id=aud_id_final).delete()
-                    db.add(MteEvidencias(
-                        auditoria_id=aud_id_final, 
-                        tipo_evidencia="EVIDENCIA_BASE64", 
-                        foto_base64=processar_foto_para_db(foto_capturada.getvalue())
-                    ))
+                if substituir_ev or not ev_obj:
+                    if evidencia_bytes:
+                        db.query(MteEvidencias).filter_by(auditoria_id=aud_id_final).delete()
+                        db.add(MteEvidencias(
+                            auditoria_id=aud_id_final, 
+                            tipo_evidencia="EVIDENCIA_BASE64", 
+                            foto_base64=processar_foto_para_db(evidencia_bytes)
+                        ))
                 
                 db.commit()
                 st.session_state['mte_edit_id'] = None
@@ -675,7 +771,7 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                             with c2:
                                 st.markdown("##### ⚙️ Pesos (Aba Avaliação)")
                                 st.markdown(f"**Severidade Base:** `{sev}`")
-                                # SIGLAS EXPLICADAS
+                                # SIGLAS EXPLICADAS COM O COMANDO HELP
                                 peso_et = st.selectbox("Probabilidade - Exigência da Tarefa (ET):", [1, 3, 5, 7, 9], index=peso_index, key=f"et_{fator.id}", help="Mede o quanto a tarefa exige do trabalhador ou a frequência de exposição ao risco.")
                                 peso_re = st.selectbox("Probabilidade - Requisitos Legais/NRs (RE):", [1, 3, 5, 7, 9], index=peso_index, key=f"re_{fator.id}", help="Avalia se a empresa está descumprindo o que a Norma Regulamentadora manda.")
                                 peso_me = st.selectbox("Probabilidade - Medidas de Prevenção (ME):", [1, 3, 5, 7, 9], index=peso_index, key=f"me_{fator.id}", help="Avalia se a empresa já tem alguma medida de controle preventiva (ex: canal de denúncia, pausas).")
