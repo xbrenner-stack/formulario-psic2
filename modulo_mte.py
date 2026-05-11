@@ -60,25 +60,25 @@ class MteEvidencias(BaseMTE):
 # --- FUNÇÕES UTILITÁRIAS ---
 def processar_foto_para_db(image_bytes):
     """
-    Reduz o tamanho e comprime a imagem para evitar estouro de memória (Tela Branca) no Render
-    e economizar espaço no banco de dados da HostGator.
+    Reduz o tamanho e comprime a imagem para evitar estouro de memória no Render
+    e economizar espaço no banco de dados.
     """
     if not image_bytes:
         return ""
     try:
         from PIL import Image as PILImage, ImageFile
-        # Evita erro ao processar imagens que sofreram micro-cortes no 3G/4G
+        # Evita erro em uploads mobile de arquivos corrompidos na transferência
         ImageFile.LOAD_TRUNCATED_IMAGES = True 
         
         with PILImage.open(io.BytesIO(image_bytes)) as img:
-            # O SEGREDO DO DRAFT: Economiza RAM no servidor lendo o JPEG de forma otimizada
+            # Comando draft para economizar RAM no celular/Render
             if img.format in ['JPEG', 'MPO']:
                 img.draft('RGB', (1000, 1000))
                 
             if img.mode in ("RGBA", "P"):
                 img = img.convert("RGB")
             
-            # Redimensiona mantendo proporção para máximo de 800px no maior lado
+            # Limita a largura para 800px mantendo a proporção
             if img.width > 800 or img.height > 800:
                 if img.width > img.height:
                     new_w = 800
@@ -89,11 +89,11 @@ def processar_foto_para_db(image_bytes):
                 img = img.resize((new_w, new_h), PILImage.Resampling.LANCZOS)
             
             buf = io.BytesIO()
-            # Salva com 60% de qualidade, formato web-friendly
+            # Salva como JPEG com compressão de 60%
             img.save(buf, format='JPEG', quality=60, optimize=True)
             return base64.b64encode(buf.getvalue()).decode('utf-8')
     except Exception as e:
-        st.error("Erro ao compactar a imagem no servidor. Tente usar uma foto com resolução menor.")
+        st.error(f"Erro ao processar imagem: {e}")
         return ""
 
 DB_URL = st.secrets["db_url"] if "db_url" in st.secrets else "sqlite:///sst_data.db"
@@ -135,7 +135,11 @@ def calcular_zenit_mte(peso_et, peso_re, peso_me, severidade_str):
 def popular_fatores_iniciais():
     db = get_db_mte()
     count = db.query(MteFatores).count()
-    if count > 0 and count < 13:
+    
+    # Verifica se a palavra 'descarado' ainda existe no banco para forçar a atualização
+    check_fator_descarado = db.query(MteFatores).filter(MteFatores.fontes_lista.like('%descarado%')).first()
+    
+    if (count > 0 and count < 13) or check_fator_descarado:
         db.query(MteFatores).delete()
         db.commit()
         count = 0
@@ -188,7 +192,7 @@ def popular_fatores_iniciais():
                 fator_mte="07. Baixa justiça organizacional", 
                 pergunta_sugerida="**🗣️ Pergunta:** \"As regras e as punições aqui valem para todo mundo igual, ou tem 'panelinha' onde uns podem fazer tudo e outros levam bronca por qualquer coisinha?\"\n\n**💡 Dica para o Avaliador:** _Foque em situações claras de injustiça e favoritismo descarado que geram revolta e clima ruim na equipe._", 
                 texto_pgr="Percepção de desigualdade na aplicação de normas operacionais, gerando conflitos de relacionamento.", 
-                fontes_lista="Regras aplicadas de forma desigual entre os funcionários, Favoritismo descarado da chefia com algumas pessoas, Punições dadas de forma injusta ou exagerada", 
+                fontes_lista="Regras aplicadas de forma desigual entre os funcionários, Favoritismo da chefia com algumas pessoas, Punições dadas de forma injusta ou exagerada", 
                 lesoes="Transtorno mental", cids="F43", plano_acao="Padronizar e dar transparência às regras de conduta e penalidades.", acompanhamento="Auditoria de processos internos."
             ),
             MteFatores(
@@ -265,7 +269,12 @@ def gerar_pdf_auditoria(auditoria_id):
         pdf.ln(5)
         
         pdf.set_font("Arial", '', 10)
-        texto_metodologia = "Em conformidade com a NR-01 (subitem 1.5.3.3) e NR-17, este documento comprova a consulta formal aos trabalhadores para a identificação preliminar de perigos e avaliação qualitativa de fatores de riscos psicossociais, visando integração ao Programa de Gerenciamento de Riscos (PGR)."
+        # TEXTO ATUALIZADO COM A REFERÊNCIA AO GUIA OFICIAL DO MTE
+        texto_metodologia = (
+            "Em conformidade com a NR-01 (subitem 1.5.3.3) e NR-17, este documento comprova a consulta formal aos trabalhadores para a identificação "
+            "preliminar de perigos e avaliação qualitativa de fatores de riscos psicossociais, visando integração ao Programa de Gerenciamento de Riscos (PGR). "
+            "A nomenclatura e a numeração dos fatores de risco avaliados neste laudo (ex: 01 a 13) foram extraídas na íntegra do Guia Técnico Oficial do Ministério do Trabalho e Emprego (MTE)."
+        )
         pdf.multi_cell(0, 5, texto_metodologia)
         pdf.ln(8)
         
@@ -644,7 +653,7 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                     c1, c2 = st.columns([2, 1])
                     with c1:
                         st.markdown(f"**Identificação:** {aud_data.tipo_assinatura_escolhida}")
-                        if aud_data.nome_signatario and not str(aud_data.tipo_assinatura_escolhida).startswith("5"):
+                        if aud_data.nome_signatario and not (str(aud_data.tipo_assinatura_escolhida).startswith("1") or str(aud_data.tipo_assinatura_escolhida).startswith("5") or str(aud_data.tipo_assinatura_escolhida).startswith("6")):
                             st.markdown(f"**Consultado:** {aud_data.nome_signatario} ({aud_data.cargo_signatario})")
                         
                         resultados_hist = db.query(MteResultados, MteFatores).join(MteFatores).filter(MteResultados.auditoria_id == id_aud, MteResultados.risco_existente == True).all()
@@ -757,12 +766,16 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                                 st.text_area("Acompanhamento:", value=fator.acompanhamento, height=100, key=f"ac_{fator.id}")
                             
                             with c2:
-                                st.markdown("##### ⚙️ Pesos")
-                                peso_et = st.selectbox("ET:", [1, 3, 5, 7, 9], index=peso_index, key=f"et_{fator.id}")
-                                peso_re = st.selectbox("RE:", [1, 3, 5, 7, 9], index=peso_index, key=f"re_{fator.id}")
-                                peso_me = st.selectbox("ME:", [1, 3, 5, 7, 9], index=peso_index, key=f"me_{fator.id}")
+                                st.markdown("##### ⚙️ Pesos (Aba Avaliação)")
+                                st.markdown(f"**Severidade Base:** `{sev}`")
+                                # SIGLAS EXPLICADAS COM O COMANDO HELP
+                                peso_et = st.selectbox("Probabilidade - Exigência da Tarefa (ET):", [1, 3, 5, 7, 9], index=peso_index, key=f"et_{fator.id}", help="Mede o quanto a tarefa exige do trabalhador ou a frequência de exposição.")
+                                peso_re = st.selectbox("Probabilidade - Requisitos Legais/NRs (RE):", [1, 3, 5, 7, 9], index=peso_index, key=f"re_{fator.id}", help="Avalia se a empresa está descumprindo o que a NR manda.")
+                                peso_me = st.selectbox("Probabilidade - Medidas de Prevenção (ME):", [1, 3, 5, 7, 9], index=peso_index, key=f"me_{fator.id}", help="Avalia se a empresa já tem alguma medida de controle (ex: canal de denúncia).")
                                 
                                 calc = calcular_zenit_mte(peso_et, peso_re, peso_me, sev)
+                                st.divider()
+                                st.markdown("##### 🎯 Resultado Esperado (Zenit)")
                                 st.markdown(f"**Nível:** `{calc['risco']}`")
                                 st.markdown(f"**Ação:** `{calc['acao']['decisao']}`")
 
@@ -779,8 +792,13 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
 <p style="margin: 0 0 0 0;"><b>Acompanhamento:</b><br>{fator.acompanhamento}</p>
 </td>
 <td style="width: 35%; vertical-align: top; background-color: #f4f4f4; padding: 10px; border-left: 1px solid #ccc;">
+<h4 style="margin: 0 0 10px 0; color:#000; font-size: 13px;">Parâmetros Zenit</h4>
 <p style="margin: 0 0 3px 0;"><b>Severidade:</b> {sev}</p>
-<p style="margin: 0 0 3px 0;"><b>Probabilidade:</b> {calc['prob_calc']}</p>
+<p style="margin: 0 0 3px 0;"><b>Prob. Exigência da Tarefa (ET):</b> Peso {peso_et}</p>
+<p style="margin: 0 0 3px 0;"><b>Prob. Requisitos Legais (RE):</b> Peso {peso_re}</p>
+<p style="margin: 0 0 3px 0;"><b>Prob. Medidas Prevenção (ME):</b> Peso {peso_me}</p>
+<p style="margin: 0 0 10px 0;"><b>Prob. NR09 (PE):</b> Peso 1</p>
+<p style="margin: 0 0 3px 0; border-top: 1px solid #ccc; padding-top: 5px;"><b>Probabilidade Final:</b> {calc['prob_calc']} (PR: {calc['PR']})</p>
 <p style="margin: 0 0 3px 0;"><b>Nível do Risco:</b> {calc['risco']}</p>
 <p style="margin: 0 0 0 0;"><b>Decisão:</b> {calc['acao']['decisao']}</p>
 </td>
