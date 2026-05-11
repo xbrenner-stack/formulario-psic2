@@ -248,8 +248,15 @@ def gerar_pdf_auditoria(auditoria_id):
 
         evidencia_db = db.query(MteEvidencias).filter(MteEvidencias.auditoria_id == auditoria_id).first()
         imagem_bytes = None
+        
+        # BLINDAGEM DE BASE64 CORROMPIDO (LIMITE DO BANCO DE DADOS)
         if evidencia_db and evidencia_db.foto_base64:
-            imagem_bytes = base64.b64decode(evidencia_db.foto_base64)
+            try:
+                b64_str = evidencia_db.foto_base64
+                b64_str += "=" * ((4 - len(b64_str) % 4) % 4)
+                imagem_bytes = base64.b64decode(b64_str)
+            except Exception:
+                imagem_bytes = None
             
         pdf = FPDF()
         pdf.add_page()
@@ -449,7 +456,7 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
             
             tipo_comprovacao = st.radio("Selecione o mecanismo probatório:", opcoes_comprovacao, index=idx_comp, key=f"rad_tipo_{key_suf}")
             
-            # RAIO-X DE PROTEÇÃO DE EVIDÊNCIA
+            # RAIO-X DE PROTEÇÃO DE EVIDÊNCIA E BLINDAGEM DE BASE64
             ev_obj = None
             if aud_obj_carregado:
                 ev_obj = db.query(MteEvidencias).filter_by(auditoria_id=aud_obj_carregado.id).first()
@@ -457,7 +464,13 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
             substituir_ev = False
             if ev_obj and ev_obj.foto_base64:
                 st.success("✅ **Evidência Protegida:** Uma prova documental já está armazenada no banco para esta auditoria.")
-                st.image(base64.b64decode(ev_obj.foto_base64), width=300)
+                try:
+                    b64_str = ev_obj.foto_base64
+                    b64_str += "=" * ((4 - len(b64_str) % 4) % 4)
+                    st.image(base64.b64decode(b64_str), width=300)
+                except Exception:
+                    st.error("⚠️ Esta foto foi corrompida pelo limite antigo do banco de dados e não pode ser exibida.")
+                    
                 substituir_ev = st.toggle("🔄 Descartar e Capturar Nova Evidência", key=f"subs_ev_{key_suf}")
             
             evidencia_bytes = None
@@ -643,8 +656,15 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                     with c2:
                         st.markdown("**Evidência Armazenada:**")
                         evi_data = db.query(MteEvidencias).filter_by(auditoria_id=id_aud).first()
+                        
+                        # BLINDAGEM DE BASE64 CORROMPIDO (LIMITE DO BANCO DE DADOS)
                         if evi_data and evi_data.foto_base64:
-                            st.image(base64.b64decode(evi_data.foto_base64), use_container_width=True)
+                            try:
+                                b64_str = evi_data.foto_base64
+                                b64_str += "=" * ((4 - len(b64_str) % 4) % 4)
+                                st.image(base64.b64decode(b64_str), use_container_width=True)
+                            except Exception:
+                                st.error("⚠️ Esta foto foi corrompida pelo limite antigo do banco de dados e não pode ser exibida.")
                         else:
                             st.warning("Sem imagem atrelada no banco.")
                 
