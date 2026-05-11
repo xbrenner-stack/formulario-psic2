@@ -59,20 +59,32 @@ class MteEvidencias(BaseMTE):
 
 # --- FUNÇÕES UTILITÁRIAS ---
 def processar_foto_para_db(image_bytes):
+    """
+    Reduz o tamanho e comprime a imagem para evitar estouro de memória no Render
+    e economizar espaço no banco de dados da HostGator.
+    """
+    if not image_bytes:
+        return ""
     try:
         from PIL import Image as PILImage
         with PILImage.open(io.BytesIO(image_bytes)) as img:
-            if img.mode != 'RGB':
-                img = img.convert('RGB')
+            # Converte para RGB (remove transparência se houver)
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+            
+            # Limita a largura para 800px mantendo a proporção
             if img.width > 800:
                 aspect = img.height / img.width
                 new_w = 800
                 new_h = int(new_w * aspect)
                 img = img.resize((new_w, new_h), PILImage.Resampling.LANCZOS)
+            
             buf = io.BytesIO()
+            # Salva como JPEG com compressão de 70% (ótimo equilíbrio visual/peso)
             img.save(buf, format='JPEG', quality=70, optimize=True)
             return base64.b64encode(buf.getvalue()).decode('utf-8')
-    except Exception:
+    except Exception as e:
+        st.error(f"Erro ao processar imagem: {e}")
         return ""
 
 DB_URL = st.secrets["db_url"] if "db_url" in st.secrets else "sqlite:///sst_data.db"
@@ -161,7 +173,7 @@ def popular_fatores_iniciais():
                 pergunta_sugerida="**🗣️ Pergunta:** \"Você consegue dar uma paradinha rápida se precisar, ou a máquina e a chefia controlam cada passo seu o tempo todo, como se você fosse um robô?\"\n\n**💡 Dica para o Avaliador:** _O risco aqui é quando o funcionário não tem liberdade nem para as necessidades básicas sem sofrer punição ou parar a produção._", 
                 texto_pgr="Impossibilidade técnica ou gerencial de o trabalhador tomar decisões simples sobre o método ou ritmo de sua tarefa.", 
                 fontes_lista="Ritmo de trabalho 100% imposto pela máquina ou esteira, Proibição de fazer pausas rápidas (como ir ao banheiro ou beber água), Monitoramento excessivo e punitivo de cada movimento", 
-                lesoes="Transtorno mental / DORT", cids="F32, Z56", plano_acao="Revisar fluxos de aprovação, permitindo pequenas tomadas de decisão na base.", acompanhamento="Caixa de sugestões de melhorias."
+                lesoes="Transtorno mental / DORT", cids="F32, Z56", plano_acao="Revisar fluxos de acesso à gestão, permitindo pequenas decisões na base.", acompanhamento="Caixa de sugestões de melhorias."
             ),
             MteFatores(
                 fator_mte="07. Baixa justiça organizacional", 
@@ -282,16 +294,16 @@ def gerar_pdf_auditoria(auditoria_id):
                 from PIL import Image as PILImage
                 with PILImage.open(temp_img) as img:
                     w, h = img.size
-                aspect = h / w
-                img_h = 80 * aspect
-                
-                curr_y = pdf.get_y()
-                if curr_y + img_h > 240:
-                    pdf.add_page()
+                    aspect = h / w
+                    img_h = 80 * aspect
+                    
                     curr_y = pdf.get_y()
-                
-                pdf.image(temp_img, x=65, y=curr_y, w=80)
-                pdf.set_y(curr_y + img_h + 5)
+                    if curr_y + img_h > 240:
+                        pdf.add_page()
+                        curr_y = pdf.get_y()
+                    
+                    pdf.image(temp_img, x=65, y=curr_y, w=80)
+                    pdf.set_y(curr_y + img_h + 5)
             except Exception:
                 pass
             if os.path.exists(temp_img):
@@ -443,23 +455,23 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
             cpf_s = aud_obj_carregado.cpf_signatario if aud_obj_carregado else ""
 
             if not ev_obj or substituir_ev:
-                # FLUXO NORMAL (Sem evidência protegida)
+                # --- CORREÇÃO PARA CELULAR (REMOÇÃO DO CAMERA_INPUT) ---
                 if tipo_comprovacao in ["1. Fluxo Híbrido (Foto da RAT Física)", "4. Modo Não Alfabetizado (Impressão Digital)", "5. Fé Pública do Avaliador (Diário de Campo)", "6. Inserção em Lista de DDS/OS"]:
-                    st.info("Para esta opção, escolha como deseja enviar a evidência:")
-                    c_cam, c_up = st.columns(2)
-                    ligar_camera = c_cam.toggle("📸 Ligar Câmera para capturar", key=f"t_cam_{key_suf}")
-                    abrir_galeria = c_up.toggle("📁 Escolher arquivo da Galeria", key=f"t_up_{key_suf}")
+                    st.info("💡 **Dica de Campo:** No celular, clique abaixo e escolha 'Câmera' para tirar a foto ou 'Arquivos' para galeria.")
                     
-                    if ligar_camera:
-                        foto_cam = st.camera_input("Capturar Imagem da Prova Documental", key=f"cam_geral_{key_suf}")
-                        if foto_cam: evidencia_bytes = foto_cam.getvalue()
-                    
-                    if abrir_galeria:
-                        foto_up = st.file_uploader("Selecionar arquivo de imagem", type=['jpg', 'jpeg', 'png'], key=f"up_geral_{key_suf}")
-                        if foto_up: evidencia_bytes = foto_up.getvalue()
+                    foto_capturada = st.file_uploader(
+                        "📸 Capturar Foto ou Selecionar da Galeria", 
+                        type=['jpg', 'jpeg', 'png'], 
+                        key=f"up_geral_{key_suf}",
+                        help="Tire a foto da RAT, digital ou diário de campo."
+                    )
+                    if foto_capturada:
+                        evidencia_bytes = foto_capturada.getvalue()
+                        # Feedback visual imediato para o técnico saber que funcionou
+                        st.success("Foto carregada com sucesso!")
                         
                 elif tipo_comprovacao in ["2. Atestado do Responsável do Turno (Assinatura Eletrônica)", "3. Representante Amostral (Assinatura Eletrônica)"]:
-                    st.info("Selecione o funcionário no banco de dados ou adicione manualmente se não for registrado (ex: Sócio).")
+                    st.info("Busque o trabalhador ou adicione manualmente se não for registrado.")
                     funcionarios = []
                     try:
                         res_func = db.execute(text("SELECT nome, funcao, cpf FROM funcionarios WHERE empresa_id = :e_id ORDER BY nome ASC"), {"e_id": emp_id}).fetchall()
@@ -489,9 +501,11 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                     st.write("Assinatura na Tela:")
                     cv = st_canvas(stroke_width=2, stroke_color="#000", background_color="#FFF", height=150, key=f"cv_ass_{key_suf}")
                     if cv.image_data is not None:
-                        buf = io.BytesIO()
-                        Image.fromarray(cv.image_data.astype('uint8')).convert('RGB').save(buf, format="JPEG")
-                        evidencia_bytes = buf.getvalue()
+                        # Verifica se houve desenho (para não salvar fundo branco vazio)
+                        if np.any(cv.image_data[:, :, 3] > 0):
+                            buf = io.BytesIO()
+                            Image.fromarray(cv.image_data.astype('uint8')).convert('RGB').save(buf, format="JPEG")
+                            evidencia_bytes = buf.getvalue()
             else:
                 # EDIÇÃO DE TEXTO APENAS (Mantendo a evidência antiga intocável)
                 st.write("✏️ **Revisar dados do signatário (Apenas Texto):**")
@@ -508,7 +522,6 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
             if salvar_rascunho or finalizar_aud:
                 status_final = "Concluída" if finalizar_aud else "Em Andamento"
                 
-                # Se não tem evidência nova, nem evidência velha protegida, e não é o modo fé pública
                 if not evidencia_bytes and not ev_obj and not tipo_comprovacao.startswith("5"):
                     st.warning("⚠️ Nenhuma evidência visual/assinatura registrada. O documento será salvo sem comprovação anexada.")
                     
@@ -562,16 +575,20 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                         ))
                         riscos_salvos += 1
                 
-                # Lidar com a Evidência Documental
+                # Lidar com a Evidência Documental (Compressão e Resize)
                 if substituir_ev or not ev_obj:
                     if evidencia_bytes:
                         db.query(MteEvidencias).filter_by(auditoria_id=aud_id_final).delete()
-                        db.add(MteEvidencias(auditoria_id=aud_id_final, tipo_evidencia="EVIDENCIA_BASE64", foto_base64=processar_foto_para_db(evidencia_bytes)))
+                        db.add(MteEvidencias(
+                            auditoria_id=aud_id_final, 
+                            tipo_evidencia="EVIDENCIA_BASE64", 
+                            foto_base64=processar_foto_para_db(evidencia_bytes)
+                        ))
                 
                 db.commit()
                 st.session_state['mte_edit_id'] = None
                 st.success(f"✅ Documento salvo! Status: {status_final}. Riscos computados: {riscos_salvos}.")
-                time.sleep(2)
+                time.sleep(1.5)
                 st.rerun()
 
         # ==========================================
@@ -663,12 +680,12 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                     st.components.v1.html(script, height=0)
 
                 st.markdown("### 📑 Gabarito MTE para o Software Zenit")
-                st.info("💡 **Como usar:** O sistema cruzou a Severidade e o Volume de Sintomas apontados pelo avaliador para sugerir os Pesos do Zenit. Você pode revisar e ajustar os Pesos nas caixinhas abaixo antes de copiar para o Zenit.")
+                st.info("💡 **Como usar:** O sistema cruzou a Severidade e o Volume de Sintomas apontados pelo avaliador para sugerir os Pesos do Zenit.")
                 
                 resultados_gab = db.query(MteResultados, MteFatores).join(MteFatores).filter(MteResultados.auditoria_id == aud_gab_id, MteResultados.risco_existente == True).all()
                 
                 if not resultados_gab:
-                    st.success("O Avaliador não identificou nenhum risco da organização do trabalho nesta auditoria. Não há passivos para exportar ao Zenit.")
+                    st.success("O Avaliador não identificou nenhum risco da organização do trabalho nesta auditoria.")
                 else:
                     html_print_gabarito = f'''
 <div class="print-gabarito-doc">
@@ -694,28 +711,20 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                             with c1:
                                 st.markdown("##### 📝 Textos para Cadastro no Zenit")
                                 st.text_area("Perigo:", value=fator.fator_mte, height=68, key=f"p_{fator.id}")
-                                st.text_area("Possíveis lesões ou agravos (CIDs):", value=fator.cids, height=68, key=f"c_{fator.id}")
-                                st.text_area("Fontes ou Circunstâncias:", value=texto_fontes_combo, height=100, key=f"f_{fator.id}")
-                                st.text_area("Plano de Ação / Medidas:", value=fator.plano_acao, height=100, key=f"pl_{fator.id}")
-                                st.text_area("Forma de Acompanhamento:", value=fator.acompanhamento, height=100, key=f"ac_{fator.id}")
+                                st.text_area("CIDs:", value=fator.cids, height=68, key=f"c_{fator.id}")
+                                st.text_area("Fontes:", value=texto_fontes_combo, height=100, key=f"f_{fator.id}")
+                                st.text_area("Plano de Ação:", value=fator.plano_acao, height=100, key=f"pl_{fator.id}")
+                                st.text_area("Acompanhamento:", value=fator.acompanhamento, height=100, key=f"ac_{fator.id}")
                             
                             with c2:
-                                st.markdown("##### ⚙️ Pesos (Aba Avaliação)")
-                                st.markdown(f"**Severidade Base:** `{sev}`")
-                                peso_et = st.selectbox("Probabilidade - Exigência (ET):", [1, 3, 5, 7, 9], index=peso_index, key=f"et_{fator.id}")
-                                peso_re = st.selectbox("Probabilidade - NRs (RE):", [1, 3, 5, 7, 9], index=peso_index, key=f"re_{fator.id}")
-                                peso_me = st.selectbox("Probabilidade - Prevenção (ME):", [1, 3, 5, 7, 9], index=peso_index, key=f"me_{fator.id}")
-                                st.markdown("**Probabilidade - NR09:** `Peso 1 (Não se aplica)`")
+                                st.markdown("##### ⚙️ Pesos")
+                                peso_et = st.selectbox("ET:", [1, 3, 5, 7, 9], index=peso_index, key=f"et_{fator.id}")
+                                peso_re = st.selectbox("RE:", [1, 3, 5, 7, 9], index=peso_index, key=f"re_{fator.id}")
+                                peso_me = st.selectbox("ME:", [1, 3, 5, 7, 9], index=peso_index, key=f"me_{fator.id}")
                                 
                                 calc = calcular_zenit_mte(peso_et, peso_re, peso_me, sev)
-                                
-                                st.divider()
-                                st.markdown("##### 🎯 Resultado Esperado (Zenit)")
-                                st.markdown(f"**Probabilidade Final:** `{calc['prob_calc']} (PR: {calc['PR']})`")
-                                st.markdown(f"**Nível do Risco:** `{calc['risco']}`")
-                                st.markdown(f"**Critério:** `{calc['acao']['criterio']}`")
-                                st.markdown(f"**Decisão:** `{calc['acao']['decisao']}`")
-                                st.markdown(f"**Aceitabilidade:** `{calc['acao']['aceitabilidade']}`")
+                                st.markdown(f"**Nível:** `{calc['risco']}`")
+                                st.markdown(f"**Ação:** `{calc['acao']['decisao']}`")
 
                         html_print_gabarito += f'''
 <div style="margin-bottom: 25px; page-break-inside: avoid; border: 1px solid #000; padding: 15px; border-radius: 5px;">
@@ -725,22 +734,15 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
 <td style="width: 65%; vertical-align: top; padding-right: 15px;">
 <p style="margin: 0 0 5px 0;"><b>Perigo:</b> {fator.fator_mte}</p>
 <p style="margin: 0 0 5px 0;"><b>Lesões (CIDs):</b> {fator.cids}</p>
-<p style="margin: 0 0 5px 0;"><b>Fontes ou Circunstâncias:</b><br>{texto_fontes_combo}</p>
-<p style="margin: 0 0 5px 0;"><b>Plano de Ação / Medidas:</b><br>{fator.plano_acao}</p>
+<p style="margin: 0 0 5px 0;"><b>Fontes:</b><br>{texto_fontes_combo}</p>
+<p style="margin: 0 0 5px 0;"><b>Plano de Ação:</b><br>{fator.plano_acao}</p>
 <p style="margin: 0 0 0 0;"><b>Acompanhamento:</b><br>{fator.acompanhamento}</p>
 </td>
 <td style="width: 35%; vertical-align: top; background-color: #f4f4f4; padding: 10px; border-left: 1px solid #ccc;">
-<h4 style="margin: 0 0 10px 0; color:#000; font-size: 13px;">Parâmetros Zenit</h4>
 <p style="margin: 0 0 3px 0;"><b>Severidade:</b> {sev}</p>
-<p style="margin: 0 0 3px 0;"><b>Prob. Exigência (ET):</b> Peso {peso_et}</p>
-<p style="margin: 0 0 3px 0;"><b>Prob. NRs (RE):</b> Peso {peso_re}</p>
-<p style="margin: 0 0 3px 0;"><b>Prob. Prevenção (ME):</b> Peso {peso_me}</p>
-<p style="margin: 0 0 10px 0;"><b>Prob. NR09 (PE):</b> Peso 1</p>
-<p style="margin: 0 0 3px 0; border-top: 1px solid #ccc; padding-top: 5px;"><b>Prob. Final:</b> {calc['prob_calc']} (PR: {calc['PR']})</p>
+<p style="margin: 0 0 3px 0;"><b>Probabilidade:</b> {calc['prob_calc']}</p>
 <p style="margin: 0 0 3px 0;"><b>Nível do Risco:</b> {calc['risco']}</p>
-<p style="margin: 0 0 3px 0;"><b>Critério:</b> {calc['acao']['criterio']}</p>
-<p style="margin: 0 0 3px 0;"><b>Decisão:</b> {calc['acao']['decisao']}</p>
-<p style="margin: 0 0 0 0;"><b>Aceitabilidade:</b> {calc['acao']['aceitabilidade']}</p>
+<p style="margin: 0 0 0 0;"><b>Decisão:</b> {calc['acao']['decisao']}</p>
 </td>
 </tr>
 </table>
