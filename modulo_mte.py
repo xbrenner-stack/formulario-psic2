@@ -354,7 +354,8 @@ def gerar_pdf_auditoria(auditoria_id):
             pdf.cell(0, 4, txt_cargo_cpf, ln=True, align='C')
         
         # RODAPÉ COM CARIMBO DO AVALIADOR
-        pdf.set_y(275)
+        # O espaçamento dinâmico ln(15) impede que o FPDF pule para uma página em branco
+        pdf.ln(15)
         pdf.set_font("Arial", 'I', 8)
         
         texto_rodape = f"Levantamento conduzido em campo por: {auditoria.usuario_logado}"
