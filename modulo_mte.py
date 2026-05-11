@@ -327,8 +327,9 @@ def gerar_pdf_auditoria(auditoria_id):
         else:
             pdf.ln(15)
             
-        # --- LÓGICA DE ASSINATURA CONDICIONAL (Opção 5: Fé Pública) ---
-        if not tipo_assinatura.startswith("5"):
+        # --- LÓGICA DE ASSINATURA CONDICIONAL ---
+        # Não imprime linha de assinatura para RAT (1), Fé Pública (5) ou Lista DDS (6)
+        if not (tipo_assinatura.startswith("1") or tipo_assinatura.startswith("5") or tipo_assinatura.startswith("6")):
             y_assinaturas = pdf.get_y()
             if y_assinaturas > 260:
                 pdf.add_page()
@@ -492,8 +493,8 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                         evidencia_bytes = foto_capturada.getvalue()
                         st.success("✅ Arquivo de foto anexado com sucesso!")
                         
-                    # Se for a Opção 5, não mostrar campos de Nome e Cargo do trabalhador
-                    if tipo_comprovacao.startswith("5"):
+                    # Se for a Opção 1, 5 ou 6, não mostrar campos de Nome e Cargo do trabalhador individual
+                    if tipo_comprovacao.startswith("1") or tipo_comprovacao.startswith("5") or tipo_comprovacao.startswith("6"):
                         nome_s = ""
                         cargo_s = ""
                         cpf_s = ""
@@ -541,7 +542,7 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                             evidencia_bytes = buf.getvalue()
             else:
                 # Edição de texto quando já existe evidência protegida
-                if tipo_comprovacao.startswith("5"):
+                if tipo_comprovacao.startswith("1") or tipo_comprovacao.startswith("5") or tipo_comprovacao.startswith("6"):
                     nome_s = ""
                     cargo_s = ""
                     cpf_s = ""
