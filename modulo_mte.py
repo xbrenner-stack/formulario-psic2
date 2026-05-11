@@ -12,7 +12,6 @@ import base64
 from datetime import datetime
 
 # --- TRAVA DE SEGURANÇA PARA FRAGMENTOS (ALTA PERFORMANCE) ---
-# Isso impede que o app quebre se o seu Streamlit for mais antigo
 if hasattr(st, "fragment"):
     fragment_decorator = st.fragment
 elif hasattr(st, "experimental_fragment"):
@@ -68,26 +67,19 @@ class MteEvidencias(BaseMTE):
 
 # --- FUNÇÕES UTILITÁRIAS ---
 def processar_foto_para_db(image_bytes):
-    """
-    Reduz o tamanho e comprime a imagem para evitar estouro de memória no Render
-    e economizar espaço no banco de dados.
-    """
     if not image_bytes:
         return ""
     try:
         from PIL import Image as PILImage, ImageFile
-        # Evita erro em uploads mobile de arquivos corrompidos na transferência
         ImageFile.LOAD_TRUNCATED_IMAGES = True 
         
         with PILImage.open(io.BytesIO(image_bytes)) as img:
-            # Comando draft para economizar RAM no celular/Render
             if img.format in ['JPEG', 'MPO']:
                 img.draft('RGB', (1000, 1000))
                 
             if img.mode in ("RGBA", "P"):
                 img = img.convert("RGB")
             
-            # Limita a largura para 800px mantendo a proporção
             if img.width > 800 or img.height > 800:
                 if img.width > img.height:
                     new_w = 800
@@ -98,7 +90,6 @@ def processar_foto_para_db(image_bytes):
                 img = img.resize((new_w, new_h), PILImage.Resampling.LANCZOS)
             
             buf = io.BytesIO()
-            # Salva como JPEG com compressão de 60%
             img.save(buf, format='JPEG', quality=60, optimize=True)
             return base64.b64encode(buf.getvalue()).decode('utf-8')
     except Exception as e:
@@ -143,15 +134,17 @@ def calcular_zenit_mte(peso_et, peso_re, peso_me, severidade_str):
 
 def popular_fatores_iniciais():
     db = get_db_mte()
+    
+    # CORREÇÃO CIRÚRGICA: Atualiza o texto sem deletar a linha (protege a Foreign Key)
+    try:
+        fator_corrigir = db.query(MteFatores).filter(MteFatores.fontes_lista.like('%descarado%')).first()
+        if fator_corrigir:
+            fator_corrigir.fontes_lista = fator_corrigir.fontes_lista.replace("Favoritismo descarado da chefia", "Favoritismo da chefia")
+            db.commit()
+    except Exception:
+        pass
+
     count = db.query(MteFatores).count()
-    
-    # Verifica se a palavra 'descarado' ainda existe no banco para forçar a atualização
-    check_fator_descarado = db.query(MteFatores).filter(MteFatores.fontes_lista.like('%descarado%')).first()
-    
-    if (count > 0 and count < 13) or check_fator_descarado:
-        db.query(MteFatores).delete()
-        db.commit()
-        count = 0
         
     if count == 0:
         fatores = [
@@ -346,7 +339,6 @@ def gerar_pdf_auditoria(auditoria_id):
             pdf.ln(15)
             
         # --- LÓGICA DE ASSINATURA CONDICIONAL ---
-        # Não imprime linha de assinatura para RAT (1), Fé Pública (5) ou Lista DDS (6)
         if not (tipo_assinatura.startswith("1") or tipo_assinatura.startswith("5") or tipo_assinatura.startswith("6")):
             y_assinaturas = pdf.get_y()
             if y_assinaturas > 260:
@@ -393,7 +385,6 @@ def gerar_pdf_auditoria(auditoria_id):
         db.close()
 
 # --- FRAGMENTO DE ALTA PERFORMANCE PARA O CELULAR ---
-# Isso impede que o aplicativo inteiro recarregue quando você liga um toggle no celular.
 @fragment_decorator
 def renderizar_card_fator(fator, r_atual, key_suf):
     def_identificado = r_atual is not None
@@ -458,8 +449,7 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                 for r in db.query(MteResultados).filter_by(auditoria_id=aud_obj_carregado.id).all():
                     dict_resultados[r.fator_id] = r
             
-            # Aqui chamamos o Fragmento de Alta Performance para renderizar as perguntas
-            # Isso impede que o celular trave durante o preenchimento.
+            # OTIMIZAÇÃO: Chamando o Fragmento para impedir que o celular trave
             for fator in fatores:
                 r_atual = dict_resultados.get(fator.id)
                 renderizar_card_fator(fator, r_atual, key_suf)
@@ -632,7 +622,6 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                         ))
                         riscos_salvos += 1
                 
-                # Salvar a evidência (se houver e precisar substituir)
                 if substituir_ev or not ev_obj:
                     if evidencia_bytes:
                         db.query(MteEvidencias).filter_by(auditoria_id=aud_id_final).delete()
@@ -683,7 +672,6 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                         st.markdown("**Evidência Armazenada:**")
                         evi_data = db.query(MteEvidencias).filter_by(auditoria_id=id_aud).first()
                         
-                        # BLINDAGEM DE BASE64 CORROMPIDO (LIMITE DO BANCO DE DADOS)
                         if evi_data and evi_data.foto_base64:
                             try:
                                 b64_str = evi_data.foto_base64
