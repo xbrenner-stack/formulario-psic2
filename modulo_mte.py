@@ -60,31 +60,42 @@ class MteEvidencias(BaseMTE):
 # --- FUNÇÕES UTILITÁRIAS ---
 def processar_foto_para_db(image_bytes):
     """
-    Reduz o tamanho e comprime a imagem para evitar estouro de memória no Render
-    e economizar espaço no banco de dados da HostGator.
+    Reduz o tamanho e comprime a imagem para evitar estouro de memória (Tela Branca) no Render
+    e economizar espaço no banco de dados da HostGator (Máx 800px e 60% de qualidade).
     """
     if not image_bytes:
         return ""
     try:
-        from PIL import Image as PILImage
+        from PIL import Image as PILImage, ImageFile
+        # Evita erro em uploads mobile de arquivos corrompidos na transferência
+        ImageFile.LOAD_TRUNCATED_IMAGES = True 
+        
         with PILImage.open(io.BytesIO(image_bytes)) as img:
-            # Converte para RGB (remove transparência se houver)
+            # O SEGREDO CONTRA A TELA BRANCA (Estouro de Memória no Render):
+            # Se for JPEG, pede para a biblioteca carregar uma versão menor diretamente
+            # do arquivo, economizando até 80% da memória RAM durante o processamento.
+            if img.format in ['JPEG', 'MPO']:
+                img.draft('RGB', (1000, 1000))
+                
             if img.mode in ("RGBA", "P"):
                 img = img.convert("RGB")
             
-            # Limita a largura para 800px mantendo a proporção
-            if img.width > 800:
-                aspect = img.height / img.width
-                new_w = 800
-                new_h = int(new_w * aspect)
+            # Redimensiona mantendo a proporção para o máximo de 800px no lado maior
+            if img.width > 800 or img.height > 800:
+                if img.width > img.height:
+                    new_w = 800
+                    new_h = int((800 / img.width) * img.height)
+                else:
+                    new_h = 800
+                    new_w = int((800 / img.height) * img.width)
                 img = img.resize((new_w, new_h), PILImage.Resampling.LANCZOS)
             
             buf = io.BytesIO()
-            # Salva como JPEG com compressão de 70% (ótimo equilíbrio visual/peso)
-            img.save(buf, format='JPEG', quality=70, optimize=True)
+            # Salva como JPEG com compressão EXATA de 60% conforme solicitado
+            img.save(buf, format='JPEG', quality=60, optimize=True)
             return base64.b64encode(buf.getvalue()).decode('utf-8')
     except Exception as e:
-        st.error(f"Erro ao processar imagem: {e}")
+        st.error(f"Erro ao processar a imagem. A foto pode estar corrompida. Tente novamente.")
         return ""
 
 DB_URL = st.secrets["db_url"] if "db_url" in st.secrets else "sqlite:///sst_data.db"
@@ -455,7 +466,6 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
             cpf_s = aud_obj_carregado.cpf_signatario if aud_obj_carregado else ""
 
             if not ev_obj or substituir_ev:
-                # --- CORREÇÃO PARA CELULAR (REMOÇÃO DO CAMERA_INPUT) ---
                 if tipo_comprovacao in ["1. Fluxo Híbrido (Foto da RAT Física)", "4. Modo Não Alfabetizado (Impressão Digital)", "5. Fé Pública do Avaliador (Diário de Campo)", "6. Inserção em Lista de DDS/OS"]:
                     st.info("💡 **Dica de Campo:** No celular, clique abaixo e escolha 'Câmera' para tirar a foto ou 'Arquivos' para galeria.")
                     
@@ -467,8 +477,7 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                     )
                     if foto_capturada:
                         evidencia_bytes = foto_capturada.getvalue()
-                        # Feedback visual imediato para o técnico saber que funcionou
-                        st.success("Foto carregada com sucesso!")
+                        st.success("✅ Arquivo pré-carregado com sucesso! A compactação acontecerá ao salvar.")
                         
                 elif tipo_comprovacao in ["2. Atestado do Responsável do Turno (Assinatura Eletrônica)", "3. Representante Amostral (Assinatura Eletrônica)"]:
                     st.info("Busque o trabalhador ou adicione manualmente se não for registrado.")
@@ -501,13 +510,12 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                     st.write("Assinatura na Tela:")
                     cv = st_canvas(stroke_width=2, stroke_color="#000", background_color="#FFF", height=150, key=f"cv_ass_{key_suf}")
                     if cv.image_data is not None:
-                        # Verifica se houve desenho (para não salvar fundo branco vazio)
                         if np.any(cv.image_data[:, :, 3] > 0):
                             buf = io.BytesIO()
                             Image.fromarray(cv.image_data.astype('uint8')).convert('RGB').save(buf, format="JPEG")
                             evidencia_bytes = buf.getvalue()
             else:
-                # EDIÇÃO DE TEXTO APENAS (Mantendo a evidência antiga intocável)
+                # EDIÇÃO DE TEXTO APENAS
                 st.write("✏️ **Revisar dados do signatário (Apenas Texto):**")
                 nome_s = st.text_input("Nome Completo", value=nome_s, key=f"nome_ed_{key_suf}")
                 c1, c2 = st.columns(2)
@@ -575,7 +583,7 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                         ))
                         riscos_salvos += 1
                 
-                # Lidar com a Evidência Documental (Compressão e Resize)
+                # Lidar com a Evidência Documental (Compressão e Resize Seguro)
                 if substituir_ev or not ev_obj:
                     if evidencia_bytes:
                         db.query(MteEvidencias).filter_by(auditoria_id=aud_id_final).delete()
