@@ -11,15 +11,6 @@ from streamlit_drawable_canvas import st_canvas
 import base64
 from datetime import datetime
 
-# --- TRAVA DE SEGURANÇA PARA FRAGMENTOS (ALTA PERFORMANCE) ---
-# Isso impede que o app quebre se o seu Streamlit for mais antigo
-if hasattr(st, "fragment"):
-    fragment_decorator = st.fragment
-elif hasattr(st, "experimental_fragment"):
-    fragment_decorator = st.experimental_fragment
-else:
-    def fragment_decorator(func): return func
-
 BaseMTE = declarative_base()
 
 # --- MODELOS DE BANCO DE DADOS ---
@@ -199,7 +190,7 @@ def popular_fatores_iniciais():
             ),
             MteFatores(
                 fator_mte="07. Baixa justiça organizacional", 
-                pergunta_sugerida="**🗣️ Pergunta:** \"As regras e as punições aqui valem para todo mundo igual, ou tem 'panelinha' onde uns podem fazer tudo e outros levam bronca por qualquer coisinha?\"\n\n**💡 Dica para o Avaliador:** _Foque em situações claras de injustiça e favoritismo que geram revolta e clima ruim na equipe._", 
+                pergunta_sugerida="**🗣️ Pergunta:** \"As regras e as punições aqui valem para todo mundo igual, ou tem 'panelinha' onde uns podem fazer tudo e outros levam bronca por qualquer coisinha?\"\n\n**💡 Dica para o Avaliador:** _Foque em situações claras de injustiça e favoritismo descarado que geram revolta e clima ruim na equipe._", 
                 texto_pgr="Percepção de desigualdade na aplicação de normas operacionais, gerando conflitos de relacionamento.", 
                 fontes_lista="Regras aplicadas de forma desigual entre os funcionários, Favoritismo da chefia com algumas pessoas, Punições dadas de forma injusta ou exagerada", 
                 lesoes="Transtorno mental", cids="F43", plano_acao="Padronizar e dar transparência às regras de conduta e penalidades.", acompanhamento="Auditoria de processos internos."
@@ -373,6 +364,7 @@ def gerar_pdf_auditoria(auditoria_id):
             pdf.cell(0, 4, txt_cargo_cpf, ln=True, align='C')
         
         # RODAPÉ COM CARIMBO DO AVALIADOR
+        # O espaçamento dinâmico ln(15) impede que o FPDF pule para uma página em branco
         pdf.ln(15)
         pdf.set_font("Arial", 'I', 8)
         
@@ -391,29 +383,6 @@ def gerar_pdf_auditoria(auditoria_id):
         return out.encode('latin1', errors='replace') if isinstance(out, str) else bytes(out)
     finally:
         db.close()
-
-# --- FRAGMENTO DE ALTA PERFORMANCE PARA O CELULAR ---
-# Isso impede que o aplicativo inteiro recarregue quando você liga um toggle no celular.
-@fragment_decorator
-def renderizar_card_fator(fator, r_atual, key_suf):
-    def_identificado = r_atual is not None
-    def_fontes = [f.strip() for f in r_atual.fontes_selecionadas.split(',')] if r_atual and r_atual.fontes_selecionadas else []
-    def_sev = r_atual.severidade if r_atual and r_atual.severidade else "Leve"
-    idx_sev = ["Leve", "Moderada", "Grave"].index(def_sev) if def_sev in ["Leve", "Moderada", "Grave"] else 0
-    def_obs = r_atual.observacoes_campo if r_atual else ""
-
-    with st.expander(fator.fator_mte):
-        st.markdown(fator.pergunta_sugerida)
-        identificado = st.toggle("Identificar Risco", value=def_identificado, key=f"toggle_{fator.id}_{key_suf}")
-        if identificado:
-            fontes_opcoes = [f.strip() for f in fator.fontes_lista.split(',')] if fator.fontes_lista else []
-            valid_def_fontes = [f for f in def_fontes if f in fontes_opcoes]
-            
-            st.multiselect("Fontes Observadas (Selecione)", options=fontes_opcoes, default=valid_def_fontes, key=f"fontes_{fator.id}_{key_suf}")
-            help_severidade = "🟢 Leve: Estresse passageiro. | 🟡 Moderada: Sofrimento contínuo, atestado. | 🔴 Grave: Dano crônico, Burnout."
-            st.caption(f"_{help_severidade}_")
-            st.selectbox("Severidade do Dano (Critério Médico/Ocupacional)", options=["Leve", "Moderada", "Grave"], index=idx_sev, key=f"sev_{fator.id}_{key_suf}")
-            st.text_area("Observações de Campo (Opcional)", value=def_obs, key=f"obs_{fator.id}_{key_suf}")
 
 # --- INTERFACE PRINCIPAL ---
 def renderizar_auditoria_mte(emp_id, tecnico_nome):
@@ -458,11 +427,27 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                 for r in db.query(MteResultados).filter_by(auditoria_id=aud_obj_carregado.id).all():
                     dict_resultados[r.fator_id] = r
             
-            # Aqui chamamos o Fragmento de Alta Performance para renderizar as perguntas
-            # Isso impede que o celular trave durante o preenchimento.
+            help_severidade = "🟢 Leve: Estresse passageiro, sem adoecimento. | 🟡 Moderada: Gera sofrimento contínuo, insônia, atestado. | 🔴 Grave: Dano crônico, Burnout, incapacidade."
+            
             for fator in fatores:
                 r_atual = dict_resultados.get(fator.id)
-                renderizar_card_fator(fator, r_atual, key_suf)
+                def_identificado = r_atual is not None
+                def_fontes = [f.strip() for f in r_atual.fontes_selecionadas.split(',')] if r_atual and r_atual.fontes_selecionadas else []
+                def_sev = r_atual.severidade if r_atual and r_atual.severidade else "Leve"
+                idx_sev = ["Leve", "Moderada", "Grave"].index(def_sev) if def_sev in ["Leve", "Moderada", "Grave"] else 0
+                def_obs = r_atual.observacoes_campo if r_atual else ""
+
+                with st.expander(fator.fator_mte):
+                    st.markdown(fator.pergunta_sugerida)
+                    identificado = st.toggle("Identificar Risco", value=def_identificado, key=f"toggle_{fator.id}_{key_suf}")
+                    if identificado:
+                        fontes_opcoes = [f.strip() for f in fator.fontes_lista.split(',')] if fator.fontes_lista else []
+                        valid_def_fontes = [f for f in def_fontes if f in fontes_opcoes]
+                        
+                        st.multiselect("Fontes Observadas (Selecione)", options=fontes_opcoes, default=valid_def_fontes, key=f"fontes_{fator.id}_{key_suf}")
+                        st.caption(f"_{help_severidade}_")
+                        st.selectbox("Severidade do Dano (Critério Médico/Ocupacional)", options=["Leve", "Moderada", "Grave"], index=idx_sev, key=f"sev_{fator.id}_{key_suf}")
+                        st.text_area("Observações de Campo (Opcional)", value=def_obs, key=f"obs_{fator.id}_{key_suf}")
                         
             st.divider()
             st.subheader("Evidência de Consulta (NR-01)")
@@ -784,9 +769,9 @@ def renderizar_auditoria_mte(emp_id, tecnico_nome):
                                 st.markdown("##### ⚙️ Pesos (Aba Avaliação)")
                                 st.markdown(f"**Severidade Base:** `{sev}`")
                                 # SIGLAS EXPLICADAS COM O COMANDO HELP
-                                peso_et = st.selectbox("Probabilidade - Exigência da Tarefa (ET):", [1, 3, 5, 7, 9], index=peso_index, key=f"et_{fator.id}", help="Mede o quanto a tarefa exige do trabalhador ou a frequência de exposição ao risco.")
-                                peso_re = st.selectbox("Probabilidade - Requisitos Legais/NRs (RE):", [1, 3, 5, 7, 9], index=peso_index, key=f"re_{fator.id}", help="Avalia se a empresa está descumprindo o que a Norma Regulamentadora manda.")
-                                peso_me = st.selectbox("Probabilidade - Medidas de Prevenção (ME):", [1, 3, 5, 7, 9], index=peso_index, key=f"me_{fator.id}", help="Avalia se a empresa já tem alguma medida de controle preventiva (ex: canal de denúncia, pausas).")
+                                peso_et = st.selectbox("Probabilidade - Exigência da Tarefa (ET):", [1, 3, 5, 7, 9], index=peso_index, key=f"et_{fator.id}", help="Mede o quanto a tarefa exige do trabalhador ou a frequência de exposição.")
+                                peso_re = st.selectbox("Probabilidade - Requisitos Legais/NRs (RE):", [1, 3, 5, 7, 9], index=peso_index, key=f"re_{fator.id}", help="Avalia se a empresa está descumprindo o que a NR manda.")
+                                peso_me = st.selectbox("Probabilidade - Medidas de Prevenção (ME):", [1, 3, 5, 7, 9], index=peso_index, key=f"me_{fator.id}", help="Avalia se a empresa já tem alguma medida de controle (ex: canal de denúncia).")
                                 
                                 calc = calcular_zenit_mte(peso_et, peso_re, peso_me, sev)
                                 st.divider()
