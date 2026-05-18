@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import re
 import json
+import math
 import io
 import time
 import os
@@ -1008,9 +1009,9 @@ def admin_portal():
                 if is_sim_mode:
                     st.warning("🔬 **MODO SIMULAÇÃO ATIVO:** Os gráficos e relatórios abaixo refletem os dados alterados na aba 'Dados Brutos'. Desligue a chave na aba para retornar aos dados reais do banco.")
 
-                tab_capa, tab_exec, tab_classif, tab_estat, tab_metodo, tab_bruto, tab_gabarito, tab_ger = st.tabs([
+                tab_capa, tab_exec, tab_classif, tab_estat, tab_metodo, tab_bruto, tab_gabarito, tab_ger, tab_confiabilidade = st.tabs([
                     "📑 Capa", "📊 Dashboard", "📋 Classificatório", 
-                    "📈 Estatísticas", "📖 Metodologia", "📥 Dados", "📑 Gabarito", "⚙️ Gerenciar"
+                    "📈 Estatísticas", "📖 Metodologia", "📥 Dados", "📑 Gabarito", "⚙️ Gerenciar", "📊 Confiabilidade"
                 ])
                 
                 with tab_ger:
@@ -1853,6 +1854,130 @@ def admin_portal():
                         st.download_button("📥 Excel (.xlsx)", buf.getvalue(), "relatorio_bruto.xlsx", key="down_bruto_final")
                     else:
                         st.info("Aguardando as primeiras respostas para gerar os dados brutos.")
+
+                with tab_confiabilidade:
+                    st.markdown("""
+                    <style>
+                    @media print {
+                        @page { margin: 15mm !important; }
+                        body { zoom: 0.9 !important; color: black !important; background: white !important;}
+                        header, footer, [data-testid="stSidebar"], [data-testid="stHeader"], .stButton, [data-testid="stTabs"] > div > div:first-child { display: none !important; }
+                        h1, [data-testid="stExpander"], [data-testid="stSelectbox"], [data-testid="stNumberInput"], [data-testid="stCheckbox"], .no-print { display: none !important; }
+                        .appview-container, .stApp, .main, .block-container { max-width: 100% !important; padding-top: 0 !important; margin-top: 0 !important; padding-bottom: 0 !important; background: white !important;}
+                        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color: black !important; opacity: 1 !important; filter: none !important; transition: none !important; }
+                        .print-confiabilidade { display: block !important; }
+                    }
+                    @media screen {
+                        .print-confiabilidade { display: none !important; }
+                    }
+                    </style>
+                    """, unsafe_allow_html=True)
+
+                    if st.button("🖨️ Imprimir Laudo Metodológico e Confiabilidade"):
+                        script = f"<script>setTimeout(function() {{ window.parent.print(); }}, 800);</script><div style='display:none;'>{time.time()}</div>"
+                        st.components.v1.html(script, height=0)
+
+                    st.markdown("### 1. Identificação do Escopo e Amostra")
+                    st.write(f"**Escopo Avaliado:** {txt_escopo_avaliado}")
+                    
+                    if not setores_selecionados:
+                        N_real = db.query(Funcionario).filter_by(empresa_id=emp_id, ativo=True).count()
+                    else:
+                        N_real = db.query(Funcionario).filter(Funcionario.empresa_id == emp_id, Funcionario.ativo == True, Funcionario.setor.in_(setores_selecionados)).count()
+                        
+                    n_real = df_b['FuncID'].nunique() if not df_b.empty else 0
+
+                    c1, c2, c3 = st.columns(3)
+                    simular_amostra = c3.checkbox("✏️ Ajustar valores manualmente", key=f"sim_amostra_{sel_c_id}")
+                    
+                    if simular_amostra:
+                        N_calc = c1.number_input("População Total (N)", min_value=1, value=N_real if N_real>0 else 1)
+                        n_calc = c2.number_input("Respostas Obtidas (n)", min_value=0, value=n_real)
+                    else:
+                        c1.metric("População Total Cadastrada (N)", N_real)
+                        c2.metric("Respostas Válidas Obtidas (n)", n_real)
+                        N_calc, n_calc = N_real, n_real
+
+                    if n_calc < 5 and n_calc > 0:
+                        st.error("⚠️ **ALERTA ÉTICO: Amostra inferior a 5 respondentes.** Exibição bloqueada para conformidade ética e proteção do anonimato do trabalhador (Diretriz COPSOQ).")
+                    elif n_calc == 0:
+                        st.warning("Nenhuma resposta coletada para este escopo.")
+                    else:
+                        def get_margin_error(pop_size, sample_size):
+                            if pop_size <= 1 or sample_size >= pop_size: return 0.0
+                            if sample_size <= 0: return 100.0
+                            z = 1.96 
+                            p = 0.5
+                            e = z * math.sqrt((p * (1 - p)) / sample_size) * math.sqrt((pop_size - sample_size) / (pop_size - 1))
+                            return e * 100
+
+                        margem_erro = get_margin_error(N_calc, n_calc)
+                        
+                        st.markdown("### 2. Veredito Técnico (Validade Jurídica)")
+                        if margem_erro <= 5.0:
+                            st.success(f"🟢 **Validade Alta (Margem de Erro: {margem_erro:.1f}%)**: Dados altamente robustos. Perfeitamente seguro para integrar a Matriz de Riscos do PGR e resistir a auditorias fiscais ou ações judiciais.")
+                            status_texto = "Dados altamente robustos com validade estatística plena."
+                        elif margem_erro <= 10.0:
+                            st.warning(f"🟡 **Validade Moderada (Margem de Erro: {margem_erro:.1f}%)**: Amostra aceitável para diagnóstico interno, mas possui sensibilidade moderada. Recomendável intensificar o engajamento neste escopo.")
+                            status_texto = "Amostra aceitável com sensibilidade estatística moderada."
+                        else:
+                            st.error(f"🔴 **Risco Técnico/Jurídico (Margem de Erro: {margem_erro:.1f}%)**: Amostra frágil. Os resultados deste escopo refletem opiniões isoladas e não a realidade estatística. Vulnerável a contestações legais se usado no PGR.")
+                            status_texto = "Amostra frágil com alta margem de erro, sugerindo baixa representatividade."
+
+                        st.markdown("### 3. Memória de Cálculo (Populações Finitas)")
+                        st.latex(r"e = Z \cdot \sqrt{\frac{p \cdot (1-p)}{n}} \cdot \sqrt{\frac{N-n}{N-1}}")
+                        st.caption("**Z** = 1.96 (Nível de Confiança 95%); **p** = 0.5 (Proporção); **N** = População Total; **n** = Tamanho da Amostra.")
+
+                        st.markdown("### 4. Laudo Metodológico Dinâmico")
+                        texto_metodologico = (
+                            f"Utilizou-se o COPSOQ II como instrumento de coleta, aplicado a uma amostra dimensionada pelo cálculo "
+                            f"de populações finitas. Para o escopo avaliado ({txt_escopo_avaliado}), com uma população total de {N_calc} trabalhadores, "
+                            f"foram obtidas {n_calc} respostas válidas. Aplicando a modelagem estatística com Nível de Confiança de 95%, "
+                            f"o levantamento atingiu uma Margem de Erro de {margem_erro:.1f}%. {status_texto}"
+                        )
+                        st.text_area("Texto pronto para colar no PGR (ou use o botão de imprimir acima):", value=texto_metodologico, height=120)
+                        
+                        data_atual = datetime.now().strftime('%d/%m/%Y')
+                        nome_responsavel = c_obj.empresa.nome_responsavel if c_obj.empresa.nome_responsavel else "Responsável Técnico"
+                        registro_responsavel = c_obj.empresa.registro_responsavel if c_obj.empresa.registro_responsavel else ""
+
+                        html_print_conf = f'''
+<div class="print-confiabilidade">
+<div style="text-align: center; border-bottom: 2px solid #1560bd; padding-bottom: 15px; margin-bottom: 30px;">
+<h2 style="color: #1560bd; margin-bottom: 5px;">ANEXO METODOLÓGICO: Validação Estatística da Amostra (NR-01)</h2>
+<h3 style="color: #333; margin-top: 0; font-size: 16px;">Avaliação de Riscos Psicossociais - COPSOQ II</h3>
+</div>
+<div style="margin-bottom: 25px; font-size: 14px; color: black;">
+<p style="margin: 3px 0;"><b>Empresa Avaliada:</b> {contexto}</p>
+<p style="margin: 3px 0;"><b>Escopo do Relatório:</b> {txt_escopo_avaliado}</p>
+<p style="margin: 3px 0;"><b>Data de Emissão:</b> {data_atual}</p>
+</div>
+<div style="background-color: #f8f9fa; border: 1px solid #ddd; padding: 15px; border-radius: 5px; margin-bottom: 25px;">
+<h4 style="margin-top: 0; color: #1560bd; font-size: 16px;">Parâmetros Estatísticos Calculados</h4>
+<table style="width: 100%; font-size: 14px; color: black; border-collapse: collapse;">
+<tr><td style="padding: 6px 0; width: 50%;"><b>População Total do Escopo (N):</b></td><td style="text-align: right;">{N_calc} trabalhadores</td></tr>
+<tr><td style="padding: 6px 0; border-top: 1px solid #eee;"><b>Respostas Válidas Coletadas (n):</b></td><td style="text-align: right;">{n_calc} respondentes</td></tr>
+<tr><td style="padding: 6px 0; border-top: 1px solid #eee;"><b>Nível de Confiança Adotado (Z):</b></td><td style="text-align: right;">95% (Z = 1.96)</td></tr>
+<tr><td style="padding: 6px 0; border-top: 1px solid #ccc;"><b>Margem de Erro Calculada (e):</b></td><td style="text-align: right; font-weight: bold; font-size: 16px; border-top: 1px solid #ccc; color: {'#16a34a' if margem_erro <= 5 else '#ca8a04' if margem_erro <= 10 else '#dc2626'};">{margem_erro:.1f}%</td></tr>
+</table>
+</div>
+<div style="margin-bottom: 30px; text-align: justify; line-height: 1.6; font-size: 14px; color: black;">
+<h4 style="color: #1560bd; font-size: 16px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Parecer Técnico Amostral</h4>
+<p>{texto_metodologico}</p>
+</div>
+<div style="margin-bottom: 40px; text-align: justify; line-height: 1.6; font-size: 12px; color: #333;">
+<h5 style="color: #000; margin-bottom: 5px; font-size: 13px;">Memória de Cálculo (Correção para População Finita)</h5>
+<p>O dimensionamento foi executado de acordo com a formulação estatística padronizada para estudos transversais em populações restritas, garantindo a representatividade do Grupo Similar de Exposição (GSE):<br>
+<i>e = Z × √((p(1-p))/n) × √((N-n)/(N-1))</i></p>
+</div>
+<div style="margin-top: 60px; text-align: center; color: black;">
+<p style="margin-bottom: 5px;">_________________________________________________________</p>
+<p style="margin: 0; font-weight: bold; font-size: 16px;">{nome_responsavel}</p>
+<p style="margin: 0; font-size: 14px;">{registro_responsavel}</p>
+</div>
+</div>
+'''
+                        st.markdown(html_print_conf, unsafe_allow_html=True)
 
         elif menu == "📋 Auditoria MTE":
             nome_pdf = st.session_state.get("nome_avaliador", "")
